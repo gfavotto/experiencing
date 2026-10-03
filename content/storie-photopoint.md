@@ -172,7 +172,7 @@ Di notte, dalla camerata, il vento raccontava la stessa storia di sempre: pietra
 Voleva la luce, non la folla. Buio a Falzarego, Sentiero dei Kaiserjäger, reflex e maglione arancio contro il calcare. Salendo ha pensato ai portatori e ai bengala. In vetta: caffè, macchina sul tavolo, corpo fermo dove la luce finalmente lavora. Non caccia animali: caccia un’ora.
 
 ### Esteso
-Voleva la luce, non la folla. Aveva lasciato l’auto a Falzarego al buio e aveva preso il Sentiero dei Kaiserjäger — la memoria austriaca, cenge e vuoto — con la reflex nello zaino e il maglione arancio scelto apposta per leggere contro il calcare. Non cacciava animali. Cacciava un’ora: quella in cui le stratificazioni delle Tofane smettono di essere cartolina e diventano volume.
+Voleva la luce, non la folla. Aveva lasciato l’auto a Falzarego al buio e aveva preso il Sentiero dei Kaiserjäger — la memoria austriaca, cenge e vuoto — con la reflex nello zaino e il maglione arancio scelto apposta per leggere contro il calcare. Non cacciava animali. Cacciava un’ora: quella in cui le stratificazioni delle Tofane smettono di essere cartolina e diventano volume. Era rimasto colpito dal trovare durante il percorso elementi antropici anonimi, ricoperti, ma con sembianze umane. Quanto la montagna oggi subisce il nostro impatto?
 
 Salendo ha pensato ai Kaiserjäger che portavano viveri su quel tracciato, ai bengala, al silenzio obbligato. Ha scattato poco: risparmiava batteria e attenzione. In vetta ha ordinato un caffè, ha posato la macchina sul tavolino del Photopoint, ha aspettato che il vapore della tazzina gli dicesse che era vivo e non solo un occhio dietro l’ottica.
 

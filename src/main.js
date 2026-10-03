@@ -1,5 +1,6 @@
 import "./styles.css";
 import { STORY_COPY } from "./stories-data.js";
+import { mountObjViewer } from "./objViewer.js";
 import bedUrl from "../assets/media/audio/home-bed.mp3?url";
 
 /**
@@ -9,15 +10,76 @@ import bedUrl from "../assets/media/audio/home-bed.mp3?url";
  * #spin: fortune-wheel stop on a random story.
  */
 
+/** All media under each story folder (and subfolders), incl. OBJ (+ MTL for materials). */
 /** @type {Record<string, string>} */
 const frameModules = import.meta.glob(
-  "../assets/media/[0-9][0-9][0-9][0-9][0-9]/*.{jpg,jpeg,png,webp}",
+  "../assets/media/[0-9][0-9][0-9][0-9][0-9]/**/*.{jpg,jpeg,png,webp,gif,avif,mp4,webm,mov,obj,mtl}",
   {
     eager: true,
     import: "default",
     query: "?url",
   },
 );
+
+const CAROUSEL_IMAGE_RE = /\.(jpe?g|png|webp|gif|avif)$/i;
+const VIDEO_RE = /\.(mp4|webm|mov)$/i;
+const OBJ_RE = /\.obj$/i;
+const MTL_RE = /\.mtl$/i;
+/** Photogrammetry texture packs — gallery/carousel noise, keep for OBJ loading. */
+const TEXTURE_DIR_RE = /(?:^|\/)textures\//i;
+
+/**
+ * @param {string} name path relative to story id folder
+ */
+function isTexturePackFile(name) {
+  return TEXTURE_DIR_RE.test(name) || MTL_RE.test(name);
+}
+
+/**
+ * @param {string} name
+ * @returns {"image" | "video" | "obj" | null}
+ */
+function galleryKind(name) {
+  if (isTexturePackFile(name)) return null;
+  if (OBJ_RE.test(name)) return "obj";
+  if (VIDEO_RE.test(name)) return "video";
+  if (CAROUSEL_IMAGE_RE.test(name)) return "image";
+  return null;
+}
+
+/**
+ * Map relative texture paths next to an OBJ to Vite URLs.
+ * @param {string} objPath glob key of the .obj
+ * @param {Record<string, string>} modules
+ */
+function textureMapForObj(objPath, modules) {
+  const slash = objPath.lastIndexOf("/");
+  const dir = slash >= 0 ? objPath.slice(0, slash + 1) : "";
+  /** @type {Record<string, string>} */
+  const map = {};
+  for (const [path, url] of Object.entries(modules)) {
+    if (!path.startsWith(dir)) continue;
+    if (!CAROUSEL_IMAGE_RE.test(path)) continue;
+    const rel = path.slice(dir.length);
+    map[rel] = url;
+    const base = rel.split("/").pop();
+    if (base) map[base] = url;
+  }
+  return map;
+}
+
+/**
+ * @param {string} objPath
+ * @param {Record<string, string>} modules
+ */
+function mtlUrlForObj(objPath, modules) {
+  const slash = objPath.lastIndexOf("/");
+  const dir = slash >= 0 ? objPath.slice(0, slash + 1) : "";
+  for (const [path, url] of Object.entries(modules)) {
+    if (path.startsWith(dir) && MTL_RE.test(path)) return url;
+  }
+  return null;
+}
 
 const RADIUS = 35; // vw
 const RADIUS_TEXT = RADIUS * 1.1; // outer circumference
@@ -37,18 +99,38 @@ const BED_RATE_HOME = 1;
 const BED_STOP_DELAY_MS = 1000;
 
 /**
- * @returns {{ id: string, frames: string[], title: string, datetime: string, brief: string, full: string }[]}
+ * @returns {{
+ *   id: string,
+ *   frames: string[],
+ *   gallery: {
+ *     url: string,
+ *     name: string,
+ *     kind: "image" | "video" | "obj",
+ *     path: string,
+ *     mtlUrl?: string | null,
+ *     textureMap?: Record<string, string>,
+ *   }[],
+ *   title: string,
+ *   datetime: string,
+ *   brief: string,
+ *   full: string,
+ * }[]}
  */
 function loadStories() {
-  /** @type {Map<string, { name: string, url: string }[]>} */
+  /** @type {Map<string, { name: string, url: string, path: string }[]>} */
   const byId = new Map();
 
   for (const [path, url] of Object.entries(frameModules)) {
-    const parts = path.split("/");
-    const id = parts[parts.length - 2];
-    const name = parts[parts.length - 1];
+    const match = path.match(/\/(\d{5})\//);
+    if (!match) continue;
+    const id = match[1];
+    const name = path.slice(path.lastIndexOf(`/${id}/`) + id.length + 2);
     if (!byId.has(id)) byId.set(id, []);
-    byId.get(id)?.push({ name, url: /** @type {string} */ (url) });
+    byId.get(id)?.push({
+      name,
+      url: /** @type {string} */ (url),
+      path,
+    });
   }
 
   return [...byId.entries()]
@@ -60,15 +142,42 @@ function loadStories() {
         brief: "",
         full: "",
       };
+      const sorted = frames.sort((a, b) => a.name.localeCompare(b.name));
+      // Gallery: images / videos / OBJ (not MTL or /textures/)
+      const gallery = sorted
+        .map((f) => {
+          const kind = galleryKind(f.name);
+          if (!kind) return null;
+          if (kind === "obj") {
+            return {
+              url: f.url,
+              name: f.name,
+              kind,
+              path: f.path,
+              mtlUrl: mtlUrlForObj(f.path, frameModules),
+              textureMap: textureMapForObj(f.path, frameModules),
+            };
+          }
+          return { url: f.url, name: f.name, kind, path: f.path };
+        })
+        .filter(Boolean);
+      // Carousel: stills only — never OBJ, video, or texture packs
+      const carouselSource = sorted.filter(
+        (f) => CAROUSEL_IMAGE_RE.test(f.name) && !isTexturePackFile(f.name),
+      );
+      // 15513 carousel: random frame order each load
+      const frameList =
+        id === "15513"
+          ? shuffleInPlace([...carouselSource])
+          : carouselSource;
       return {
         id,
         title: copy.title,
         datetime: copy.datetime,
         brief: copy.brief,
         full: copy.full ?? "",
-        frames: frames
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((f) => f.url),
+        frames: frameList.map((f) => f.url),
+        gallery,
       };
     })
     .filter((s) => s.frames.length > 0);
@@ -76,6 +185,17 @@ function loadStories() {
 
 function randBetween(min, max) {
   return min + Math.random() * (max - min);
+}
+
+/** Fisher–Yates shuffle (in place). */
+function shuffleInPlace(items) {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = items[i];
+    items[i] = items[j];
+    items[j] = tmp;
+  }
+  return items;
 }
 
 /** @param {number} t */
@@ -110,16 +230,32 @@ function boot() {
   const rig = document.querySelector("#rig");
   const spinBtn = document.querySelector("#spin");
   const homeBtn = document.querySelector("#home-ring");
+  const muteBtn = document.querySelector("#mute");
   const storyPanel = document.querySelector("#story-panel");
   const storyPanelDatetime = document.querySelector("#story-panel-datetime");
   const storyPanelBody = document.querySelector("#story-panel-body");
+  const storyMedia = document.querySelector("#story-media");
+  const storyMediaGrid = document.querySelector("#story-media-grid");
+  const lightbox = document.querySelector("#lightbox");
+  const lightboxImage = document.querySelector("#lightbox-image");
+  const lightboxClose = document.querySelector("#lightbox-close");
+  /** @type {(() => void)[]} */
+  let activeObjDisposers = [];
+  /** @type {HTMLVideoElement[]} */
+  let activeGalleryVideos = [];
   if (
     !(rig instanceof HTMLElement) ||
     !(spinBtn instanceof HTMLButtonElement) ||
     !(homeBtn instanceof HTMLButtonElement) ||
+    !(muteBtn instanceof HTMLButtonElement) ||
     !(storyPanel instanceof HTMLElement) ||
     !(storyPanelDatetime instanceof HTMLElement) ||
-    !(storyPanelBody instanceof HTMLElement)
+    !(storyPanelBody instanceof HTMLElement) ||
+    !(storyMedia instanceof HTMLElement) ||
+    !(storyMediaGrid instanceof HTMLElement) ||
+    !(lightbox instanceof HTMLElement) ||
+    !(lightboxImage instanceof HTMLImageElement) ||
+    !(lightboxClose instanceof HTMLButtonElement)
   ) {
     return;
   }
@@ -243,28 +379,168 @@ function boot() {
     });
   }
 
+  function closeLightbox() {
+    lightbox.hidden = true;
+    lightboxImage.removeAttribute("src");
+  }
+
+  /**
+   * @param {string} src
+   */
+  function openLightbox(src) {
+    lightboxImage.src = src;
+    lightbox.hidden = false;
+  }
+
   function hideStoryPanel() {
+    closeLightbox();
+    for (const dispose of activeObjDisposers) dispose();
+    activeObjDisposers = [];
+    for (const vid of activeGalleryVideos) {
+      vid.pause();
+      vid.removeAttribute("src");
+      vid.load();
+    }
+    activeGalleryVideos = [];
     storyPanel.classList.remove("is-visible");
     storyPanel.hidden = true;
     storyPanelDatetime.textContent = "";
     storyPanelBody.textContent = "";
+    storyMedia.classList.remove("is-visible");
+    storyMedia.hidden = true;
+    storyMediaGrid.replaceChildren();
   }
 
   /**
-   * @param {{ title: string, datetime: string, full: string }} story
+   * Gallery thumbs: 50% of intrinsic media size.
+   * @param {HTMLImageElement | HTMLVideoElement} el
+   */
+  function sizeGalleryMediaHalf(el) {
+    if (el instanceof HTMLImageElement) {
+      if (!el.naturalWidth || !el.naturalHeight) return;
+      el.style.width = `${Math.max(1, Math.round(el.naturalWidth * 0.5))}px`;
+      el.style.height = `${Math.max(1, Math.round(el.naturalHeight * 0.5))}px`;
+      return;
+    }
+    if (!el.videoWidth || !el.videoHeight) return;
+    el.style.width = `${Math.max(1, Math.round(el.videoWidth * 0.5))}px`;
+    el.style.height = `${Math.max(1, Math.round(el.videoHeight * 0.5))}px`;
+  }
+
+  /**
+   * @param {{
+   *   title: string,
+   *   datetime: string,
+   *   full: string,
+   *   gallery?: {
+   *     url: string,
+   *     name: string,
+   *     kind: "image" | "video" | "obj",
+   *     mtlUrl?: string | null,
+   *     textureMap?: Record<string, string>,
+   *   }[],
+   * }} story
    */
   function showStoryPanel(story) {
     storyPanelDatetime.textContent = `${story.datetime}\n#${story.title}`;
     storyPanelBody.textContent = story.full;
     storyPanel.hidden = false;
+
+    for (const dispose of activeObjDisposers) dispose();
+    activeObjDisposers = [];
+    activeGalleryVideos = [];
+    storyMediaGrid.replaceChildren();
+    const gallery = shuffleInPlace([...(story.gallery ?? [])]);
+    if (gallery.length) {
+      for (const item of gallery) {
+        if (item.kind === "obj") {
+          const cell = document.createElement("div");
+          cell.className = "story-media-obj";
+          storyMediaGrid.appendChild(cell);
+          const dispose = mountObjViewer(cell, {
+            objUrl: item.url,
+            mtlUrl: item.mtlUrl ?? null,
+            textureMap: item.textureMap ?? {},
+            label: item.name,
+          });
+          activeObjDisposers.push(dispose);
+          continue;
+        }
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute(
+          "aria-label",
+          item.kind === "video" ? "Video della storia" : "Ingrandisci immagine",
+        );
+        if (item.kind === "video") {
+          const vid = document.createElement("video");
+          vid.src = item.url;
+          vid.muted = true;
+          vid.defaultMuted = true;
+          vid.loop = true;
+          vid.autoplay = true;
+          vid.playsInline = true;
+          vid.setAttribute("playsinline", "");
+          vid.setAttribute("muted", "");
+          vid.preload = "auto";
+          vid.addEventListener("loadedmetadata", () => sizeGalleryMediaHalf(vid));
+          const tryPlay = () => {
+            vid.play().catch(() => {});
+          };
+          vid.addEventListener("canplay", tryPlay);
+          btn.appendChild(vid);
+          activeGalleryVideos.push(vid);
+          // no lightbox — keep looping inline
+          btn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (vid.paused) tryPlay();
+          });
+          tryPlay();
+        } else {
+          const img = document.createElement("img");
+          img.src = item.url;
+          img.alt = "";
+          img.loading = "lazy";
+          img.draggable = false;
+          if (img.complete) sizeGalleryMediaHalf(img);
+          else img.addEventListener("load", () => sizeGalleryMediaHalf(img));
+          btn.appendChild(img);
+          btn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openLightbox(item.url);
+          });
+        }
+        storyMediaGrid.appendChild(btn);
+      }
+      storyMedia.hidden = false;
+    } else {
+      storyMedia.hidden = true;
+    }
+
     // Next frame so opacity transition runs
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!settled) return;
         storyPanel.classList.add("is-visible");
+        if (gallery.length) storyMedia.classList.add("is-visible");
+        for (const vid of activeGalleryVideos) {
+          vid.play().catch(() => {});
+        }
       });
     });
   }
+
+  lightboxClose.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeLightbox();
+  });
+  lightbox.addEventListener("click", () => {
+    closeLightbox();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !lightbox.hidden) closeLightbox();
+  });
 
   /** Keep winner image; fade outer text with the bed dissolve. */
   function settleRing(keepIndex) {
@@ -323,6 +599,7 @@ function boot() {
   /** @type {GainNode | null} */
   let bedGain = null;
   let bedAllowed = true;
+  let soundMuted = false;
   let bedReady = false;
   let bedEpoch = 0;
   /** @type {ReturnType<typeof setTimeout> | null} */
@@ -375,7 +652,7 @@ function boot() {
    * @param {number} rate
    */
   function startBedSource(rate) {
-    if (!bedCtx || !bedBuffer || !bedAllowed) return;
+    if (!bedCtx || !bedBuffer || !bedAllowed || soundMuted) return;
     stopBedSource();
     if (!bedGain) {
       bedGain = bedCtx.createGain();
@@ -412,9 +689,10 @@ function boot() {
   function playBedHome() {
     clearBedStopTimer();
     bedAllowed = true;
+    if (soundMuted) return;
     const epoch = ++bedEpoch;
     ensureBedCtx().then((ctx) => {
-      if (!ctx || epoch !== bedEpoch || !bedAllowed) return;
+      if (!ctx || epoch !== bedEpoch || !bedAllowed || soundMuted) return;
       if (settled || fortune?.active) return;
       if (!bedReady || !bedBuffer) return;
       startBedSource(BED_RATE_HOME);
@@ -424,9 +702,10 @@ function boot() {
   function startBedSpin() {
     clearBedStopTimer();
     bedAllowed = true;
+    if (soundMuted) return;
     const epoch = ++bedEpoch;
     ensureBedCtx().then((ctx) => {
-      if (!ctx || epoch !== bedEpoch || !bedAllowed) return;
+      if (!ctx || epoch !== bedEpoch || !bedAllowed || soundMuted) return;
       if (!bedReady || !bedBuffer) return;
       startBedSource(BED_RATE_SPIN_MAX);
     });
@@ -434,7 +713,7 @@ function boot() {
 
   /** Match bed rate to instantaneous spin speed (ease-out). */
   function syncBedToSpin(t) {
-    if (!bedAllowed) return;
+    if (!bedAllowed || soundMuted) return;
     const speed = easeOutQuintSpeed(Math.min(1, Math.max(0, t)));
     // Map ease speed → [~0.35x … 5x]; keep a quiet floor until delayed stop
     const rate = Math.max(0.35, BED_RATE_SPIN_MAX * speed);
@@ -502,6 +781,32 @@ function boot() {
       }
     }, BED_STOP_DELAY_MS + 40);
   }
+
+  function setSoundMuted(muted) {
+    soundMuted = muted;
+    muteBtn.classList.toggle("is-muted", muted);
+    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+    muteBtn.setAttribute(
+      "aria-label",
+      muted ? "Attiva audio" : "Disattiva audio",
+    );
+    if (muted) {
+      clearBedStopTimer();
+      bedEpoch += 1;
+      stopBedSource();
+      return;
+    }
+    if (fortune?.active) {
+      startBedSpin();
+      return;
+    }
+    if (!settled) playBedHome();
+  }
+
+  muteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setSoundMuted(!soundMuted);
+  });
 
   // Unlock AudioContext on first gesture (Safari requirement).
   function unlockBed() {
@@ -626,6 +931,16 @@ function boot() {
   }
 
   function onWheel(e) {
+    const target = e.target;
+    if (
+      target instanceof Node &&
+      (storyMedia.contains(target) ||
+        lightbox.contains(target) ||
+        storyPanel.contains(target))
+    ) {
+      // Let gallery / text / lightbox scroll natively
+      return;
+    }
     if (fortune?.active) {
       e.preventDefault();
       return;

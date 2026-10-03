@@ -29,16 +29,39 @@
         aria-label="Torna alla home"
         hidden
       ></button>
+      <button
+        type="button"
+        class="mute"
+        id="mute"
+        aria-label="Disattiva audio"
+        aria-pressed="false"
+      >
+        ×
+      </button>
       <aside class="story-panel" id="story-panel" hidden aria-live="polite">
         <div class="story-panel-inner">
           <p class="story-panel-datetime" id="story-panel-datetime"></p>
           <div class="story-panel-body" id="story-panel-body"></div>
         </div>
       </aside>
+      <aside class="story-media" id="story-media" hidden aria-hidden="true">
+        <div class="story-media-grid" id="story-media-grid"></div>
+      </aside>
       <!-- Fixed viewpoint (never animated) -->
       <div class="view" id="view">
         <!-- Single rotating 3D root: images + texts as direct children (Safari-safe) -->
         <div class="rig" id="rig" aria-label="Storie Photopoint Lagazuoi"></div>
+      </div>
+      <div class="lightbox" id="lightbox" hidden>
+        <button
+          type="button"
+          class="lightbox-close"
+          id="lightbox-close"
+          aria-label="Chiudi immagine"
+        >
+          ×
+        </button>
+        <img class="lightbox-image" id="lightbox-image" alt="" />
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

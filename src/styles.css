@@ -36,14 +36,14 @@ body:active {
   overflow: visible;
 }
 
-/* 5-column page guide: 15px between columns, 5px inset from left */
+/* 5-column page guide (track math shared with story panels via :root) */
 .col-grid {
   position: absolute;
   inset: 0;
   z-index: 0;
   display: flex;
-  gap: 15px;
-  padding-left: 5px;
+  gap: var(--col-gap, 15px);
+  padding-left: var(--col-pad-left, 5px);
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -58,7 +58,7 @@ body:active {
 .title {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 4;
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -140,25 +140,60 @@ body:active {
   outline-offset: 3px;
 }
 
+.mute {
+  position: absolute;
+  right: calc(1.75rem - 5pt);
+  bottom: calc(1.75rem - 5pt);
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.42);
+  line-height: 1;
+  color: #000000;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mute.is-muted {
+  opacity: 0.4;
+}
+
+.mute:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
+}
+
 :root {
   /* Outer ring brief (small) */
   --story-type-size: calc(clamp(0.55rem, 0.95vw, 0.78rem) - 1pt);
   /* Full story in page cols 1–2 — sized for ~60% page height block */
-  --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 2pt);
+  --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 3pt);
   --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
   --title-top-pad: calc(1.75rem - 5pt);
+  --col-count: 5;
+  --col-gap: 15px;
+  --col-pad-left: 5px;
+  --col-track: calc(
+    (100% - var(--col-pad-left) - (var(--col-count) - 1) * var(--col-gap)) /
+      var(--col-count)
+  );
 }
 
 /* Full story: cols 1–2, 60% page height; fills col 1 then spills to col 2 */
 .story-panel {
   position: absolute;
   top: calc(var(--title-top-pad) + var(--title-size) + 42pt);
-  left: 5px;
+  left: var(--col-pad-left);
   z-index: 2;
   display: flex;
   align-items: flex-start;
-  /* 2 of 5 columns + the gutter between them (page width minus left pad) */
-  width: calc((100% - 5px - 4 * 15px) / 5 * 2 + 15px);
+  /* 2 of 5 columns + the gutter between them */
+  width: calc(var(--col-track) * 2 + var(--col-gap));
   height: 60%;
   box-sizing: border-box;
   padding: 0;
@@ -211,6 +246,171 @@ body:active {
   columns: 2;
   column-gap: 15px;
   column-fill: auto;
+}
+
+/* All story stills: last 2 of 5 columns, full height; behind peak prompt */
+.story-media {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(
+    var(--col-pad-left) + var(--col-track) * 3 + var(--col-gap) * 3
+  );
+  z-index: 1;
+  width: calc(var(--col-track) * 2 + var(--col-gap));
+  box-sizing: border-box;
+  padding: 0 0 calc(1.75rem - 5pt + 2.4rem);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--settle-fade-ms, 1s) ease;
+}
+
+.story-media.is-visible {
+  opacity: 1;
+}
+
+.story-media[hidden] {
+  display: none;
+}
+
+.story-media.is-visible[hidden] {
+  display: block;
+}
+
+.story-media-grid {
+  box-sizing: border-box;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 2px;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-media-grid button {
+  display: block;
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.story-media-grid button:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+
+.story-media-grid img,
+.story-media-grid video {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.story-media-obj {
+  flex: 0 0 auto;
+  width: calc(50% - 1px);
+  aspect-ratio: 1;
+  min-width: 120px;
+  max-width: 100%;
+  pointer-events: auto;
+}
+
+.story-obj {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background: transparent;
+}
+
+.story-obj:active {
+  cursor: grabbing;
+}
+
+.story-obj-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.story-obj-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 11px/1.2 ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  color: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  user-select: none;
+}
+
+.lightbox {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(1.75rem - 5pt);
+  box-sizing: border-box;
+  background: rgba(232, 255, 0, 0.92);
+  cursor: zoom-out;
+}
+
+.lightbox[hidden] {
+  display: none;
+}
+
+.lightbox-image {
+  max-width: min(92vw, 1100px);
+  max-height: min(88vh, 88svh);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: calc(1.75rem - 5pt);
+  right: calc(1.75rem - 5pt);
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.42);
+  line-height: 1;
+  color: #000000;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.lightbox-close:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
 }
 
 /* Camera: perspective + elevated tilt — static */
