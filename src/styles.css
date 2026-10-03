@@ -1,0 +1,313 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #e8ff00;
+  color: #111111;
+}
+
+body {
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+body:active {
+  cursor: grabbing;
+}
+
+/*
+  Safari flattens preserve-3d when an ancestor has overflow != visible.
+  Keep overflow on .stage for clipping, but put perspective ON .view via
+  transform (not CSS perspective on the overflow parent).
+*/
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  /* overflow on this node breaks preserve-3d in Safari — clip via body */
+  overflow: visible;
+}
+
+/* 5-column page guide: 15px between columns, 5px inset from left */
+.col-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  gap: 15px;
+  padding-left: 5px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.col-grid-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+}
+
+.title {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.35em;
+  margin: 0;
+  padding: var(--title-top-pad) 0 0;
+  pointer-events: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ff69b4;
+  text-align: center;
+  text-transform: lowercase;
+}
+
+.title-peak,
+.title-prompt {
+  text-align: center;
+}
+
+.spin {
+  position: absolute;
+  left: 50%;
+  bottom: calc(1.75rem - 5pt);
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translateX(-50%);
+  cursor: pointer;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-align: center;
+  text-transform: lowercase;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.spin:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.spin:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
+}
+
+.home-ring {
+  position: absolute;
+  left: calc(1.75rem - 5pt);
+  bottom: calc(1.75rem - 5pt);
+  z-index: 2;
+  width: 3.4rem;
+  height: 0.95rem;
+  padding: 0;
+  border: 1.5px solid #000000;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.home-ring[hidden] {
+  display: none;
+}
+
+.home-ring:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 3px;
+}
+
+:root {
+  /* Outer ring brief (small) */
+  --story-type-size: calc(clamp(0.55rem, 0.95vw, 0.78rem) - 1pt);
+  /* Full story in page cols 1–2 — sized for ~60% page height block */
+  --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 2pt);
+  --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
+  --title-top-pad: calc(1.75rem - 5pt);
+}
+
+/* Full story: cols 1–2, 60% page height; fills col 1 then spills to col 2 */
+.story-panel {
+  position: absolute;
+  top: calc(var(--title-top-pad) + var(--title-size) + 42pt);
+  left: 5px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  /* 2 of 5 columns + the gutter between them (page width minus left pad) */
+  width: calc((100% - 5px - 4 * 15px) / 5 * 2 + 15px);
+  height: 60%;
+  box-sizing: border-box;
+  padding: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--settle-fade-ms, 1s) ease;
+}
+
+.story-panel.is-visible {
+  opacity: 1;
+}
+
+.story-panel[hidden] {
+  display: none;
+}
+
+.story-panel.is-visible[hidden] {
+  display: flex;
+}
+
+.story-panel-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--story-full-size);
+  font-weight: 400;
+  line-height: 1.35;
+  color: #000000;
+}
+
+.story-panel-datetime {
+  flex: 0 0 auto;
+  margin: 0 0 0.85em;
+  font: inherit;
+  white-space: pre-line;
+}
+
+.story-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow: hidden;
+  /* Fill first column completely, then continue in the second */
+  columns: 2;
+  column-gap: 15px;
+  column-fill: auto;
+}
+
+/* Camera: perspective + elevated tilt — static */
+.view {
+  position: absolute;
+  inset: 0;
+  -webkit-transform: perspective(90vw) translateY(calc(-5vh + 5pt)) rotateX(-7deg);
+  transform: perspective(90vw) translateY(calc(-5vh + 5pt)) rotateX(-7deg);
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  -webkit-transform-origin: center center;
+  transform-origin: center center;
+}
+
+/* Only rotateY is updated in JS — direct parent of all ring faces */
+.rig {
+  position: absolute;
+  inset: 0;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  -webkit-transform-origin: center center;
+  transform-origin: center center;
+}
+
+.carousel-item,
+.text-item {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform-style: flat;
+  transform-style: flat;
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+  user-select: none;
+  pointer-events: none;
+}
+
+.text-item {
+  opacity: 1;
+  transition: opacity var(--settle-fade-ms, 1s) ease;
+}
+
+.text-item.is-fading-out {
+  opacity: 0;
+}
+
+.carousel-item.is-hidden,
+.text-item.is-hidden {
+  visibility: hidden;
+  opacity: 0;
+  transition: none;
+}
+
+.frame-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+}
+
+.frame-stack img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  /* TEST: tutte le immagini in bianco e nero */
+  filter: grayscale(1);
+}
+
+.frame-stack img.is-active {
+  opacity: 1;
+}
+
+.text-item {
+  box-sizing: border-box;
+  overflow: hidden;
+  color: #000000;
+  font-family: "Times New Roman", Times, serif;
+  text-align: left;
+}
+
+.text-item-head,
+.text-item-brief {
+  display: block;
+  margin: 0;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--story-type-size);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.text-item-head {
+  margin-bottom: calc(1.35em * 4);
+  white-space: pre-line;
+}

@@ -1,0 +1,188 @@
+# Photopoint Lagazuoi — storie
+
+> Archivio editoriale Peak Prompt.  
+> **Titolo = codice a tre cifre.** Ogni storia ha **breve** (250–300 caratteri) e **esteso** (viaggio verso la vetta).  
+> Contesto: `content/lagazuoi-contesto.md`.  
+> Ultimo aggiornamento: 2026-10-03.
+
+| Titolo | Photopoint (asset) | Nucleo del viaggio |
+| --- | --- | --- |
+| **609** | 15513 | Prima salita a piedi da Falzarego; liberarsi di un peso |
+| **442** | 29235 | Gita con il cane sul Sentiero del Fronte |
+| **978** | 46544 | Memoria del nonno Alpino; baracca e silenzio |
+| **557** | 55826 | Coppia sull’Alta Via; promessa prima della cima |
+| **629** | 57198 | Pernotto + alba verso la croce; galleria il giorno prima |
+| **598** | 65761 | Elopement: hiking (e funivia) in abiti nuziali |
+| **890** | 67091 | Famiglia day-trip; i bambini e i 650 m |
+| **898** | 72700 | Salita segreta per cacciare un cerbiatto |
+| **690** | 83531 | Notte in rifugio; alba dopo la folla delle 17 |
+| **683** | 92239 | Kaiserjäger all’alba; luce e memoria di pietra |
+
+---
+
+## 609
+
+**Asset:** `assets/media/stories/15513-f1-2026-07-05T14-25-38-big.jpg` · 05.07.2026
+
+### Breve
+Ha rifiutato la funivia. Da Falzarego, Sentiero del Fronte, zaino ancora pieno di rabbia e cose inutili. In forcella ha capito che non era fitness: era una linea di guerra. In vetta ha allargato le braccia — non per lo scatto, perché il corpo diceva di avercela fatta a portare se stessa fin qui.
+
+### Esteso
+Aveva deciso di non prendere la funivia. Non per snobismo da trekker — per bisogno. A Pian Falzarego lo zaino le pesava ancora di cose inutili: caricabatterie doppi, una maglia “per ogni evenienza”, la rabbia lasciata in città. Il Sentiero del Fronte, all’inizio, era solo un nastro di ghiaia e cartelli CAI. Poi, dopo il primo tornante, il passo le ha imposto un ritmo: respirare, posare il piede, non pensare al telefono.
+
+Verso i duemilacinquecento metri, alla Forcella Lagazuoi, il vento le ha tolto le ultime frasi pronte. Ha visto i reticolati ricostruiti, le trincee che un secolo fa chiudevano la via verso Val Badia, e ha capito — senza libri — che quella salita non era un fitness. Era una linea. Ha passato la baracca degli ufficiali austriaci senza entrare: il tavolo e le sedie d’epoca le sono bastati da fuori, come un diorama che non voleva toccare. Ha bevuto l’acqua tiepida e ha ripreso.
+
+Quando il Rifugio Lagazuoi le è apparso sopra i ghiaioni, non ha pensato al Photopoint. Ha pensato che le braccia le dolevano in un modo giusto. Solo dopo — terrazza, pedana, scatto automatico — ha allargato le braccia. Non era una posa imparata online. Era il corpo che diceva: *ce l’ho fatta a portare me stessa fin qui*. #609 è il numero che la macchina le ha dato. Il viaggio, invece, se lo tiene senza titolo.
+
+---
+
+## 442
+
+**Asset:** `assets/media/stories/29235-f1-2026-07-06T12-01-52-big.jpg` · 06.07.2026
+
+### Breve
+Il cane ha fatto più metri di molti day-tripper in cabina. Sul Sentiero del Fronte ha imparato il ritmo: annusare, fermarsi, bere. Niente galleria — troppo buio. Molte cacche interessanti però. In cima si è seduto al centro della pedana, più calmo di tutti. Portarlo dove la montagna è museo: questa è la salita.
+
+### Esteso
+Il cane ha fatto più metri di molti day-tripper in cabina. L’avevano lasciato a casa altre volte; stavolta no. Da Falzarego hanno scelto il sentiero largo, quello che i blog chiamano “facile” finché le gambe non rispondono. Lui tirava il guinzaglio solo all’inizio, poi ha capito il gioco: restare vicino, annusare il legno delle passerelle, fermarsi quando i padroni bevevano. Cacche di forme inconsuente, dai profumi nuovi. Batteva i denti per ricordare.
+
+In forcella ha incontrato altri cani e ha fatto il suo lavoro sociale. La borsa della spesa blu — assurdità consapevole — conteneva croccantini e una bottiglia d’acqua condivisa. Non sono scesi in Galleria di Mina: troppo buio, troppo stretto, e lui non ama i caschi. Hanno seguito la linea del fronte a cielo aperto, dove un tempo passavano i portatori di notte con decine di chili per uomo, e oggi passano famiglie con bastoncini telescopici.
+
+In vetta, sulla pedana del Photopoint, si è seduto da solo al centro. Non perché glielo avessero ordinato con durezza: perché il legno era fresco e la voce dei suoi umani era lì. Questa, #442, è la storia di una salita banale e rara insieme — portare un animale fin dove la montagna diventa museo — e scoprire che, di tutti, è lui ad arrivare con più calma.
+
+---
+
+## 978
+
+**Asset:** `assets/media/stories/46544-f1-2026-07-06T12a-30-24-big.jpg` · 06.07.2026
+
+### Breve
+Il nonno, Alpino, le aveva lasciato solo pezzi: il freddo delle gallerie, il nome Lagazuoi detto a mezza voce. Ha salito da Falzarego a piedi, casco e frontale, dentro la Galleria di Mina. Non cercava fantasmi: rispetto. In vetta è rimasta di spalle. Il volto spettava alle Tofane e a lui.
+
+### Esteso
+Suo nonno non le ha mai raccontato la guerra per intero. Le ha lasciato pezzi: il freddo nelle gallerie, il peso sulle spalle, il nome *Lagazuoi* pronunciato come si pronunciano le cose che non si vogliono ripetere. Era stato dagli Alpini, o vicino agli Alpini — lei non ha mai avuto il grado giusto, solo una foto sbiadita e l’odore di lana umida nei ricordi d’infanzia.
+
+Quest’anno ha deciso di salire da Falzarego senza funivia, proprio per sentire i polpacci. Ha noleggiato casco e frontale all’infopoint, è entrata nella Galleria di Mina e ha capito subito il senso delle sue reticenze: sette gradi, umidità, pendenza che ti entra nelle ginocchia. Dentro la roccia ha ripensato ai portatori notturni, alle mine del 1916–17, alla Cengia Martini aggrappata a mezza parete. Non ha cercato fantasmi. Ha cercato rispetto.
+
+Uscita alla luce, ha proseguito verso forcella e baracca. Non ha messo monete nel cannocchiale in vetta. È rimasta di spalle al Photopoint perché il volto, quel giorno, spettava alle Tofane e a un uomo morto da anni che non vedrà mai lo scatto. #978 è il numero della macchina. La storia è il nonno che, senza saperlo, le ha indicato la salita.
+
+---
+
+## 557
+
+**Asset:** `assets/media/stories/55826-f1-2026-07-07T13-16-18-big.jpg` · 07.07.2026
+
+### Breve
+Camminavano sull’Alta Via da giorni, rifugio prenotato mesi prima. Verso forcella, in un tornante senza pubblico, si sono detti una promessa rimandata in città: restare nello stesso passo. Il bacio in vetta è solo la firma. La storia è nata prima, tra canederli, temporali e piedi nel lago.
+
+### Esteso
+Camminavano da giorni sull’Alta Via 1 — o almeno su un pezzo abbastanza lungo da far loro dimenticare le mail. Avevano prenotato il Rifugio Lagazuoi mesi prima, come fanno gli australiani e gli inglesi nei blog, e avevano temuto la folla. Invece, sulla salita verso forcella, c’era abbastanza silenzio da parlarsi davvero.
+
+Lui aveva lo zaino più pesante; lei teneva il ritmo. A un tornante sopra i duemilatrecento metri, senza anello e senza pubblico, si sono fermati e si sono detti una cosa che in città rimandavano da mesi. Non un matrimonio da organizzare: una promessa di restare nello stesso passo. Poi hanno riso, perché dire cose gravi con i bastoncini in mano sembra sempre un po’ comico.
+
+Il bacio sul Photopoint è solo la firma in cima. Il viaggio era tutto ciò che c’era prima: i canederli della sera prima in un altro rifugio, i piedi nel lago a metà tappa come nei diari AV1, la paura del temporale, il sollievo quando il Lagazuoi è diventato un tetto e non un miraggio. #557 non nasce sulla pedana. Nasce sui tornanti.
+
+---
+
+## 629
+
+**Asset:** `assets/media/stories/57198-f1-2026-07-11T08-53-10-big.jpg` · 11.07.2026
+
+### Breve
+È salito col pomeriggio affollato, ha preso il dormitorio, ha aspettato che dopo le diciassette la cima diventasse eremo. Ha visto il tramonto sulle Tofane. All’alba è uscito prima degli altri: croce, memoria delle gallerie, poi la pedana di spalle. Arriva in vetta due volte. Conta la seconda.
+
+### Esteso
+È salito il pomeriggio prima, quando la funivia vomitava ancora day-tripper. Ha preso una branda nel dormitorio Pompanin, ha pagato la doccia a gettone, ha cenato al tavolo sbagliato e si è fatto rimproverare — come nei racconti dei trekker inglesi — e ha aspettato. Dopo le diciassette la cima ha cambiato personalità: da luna park a eremo. Ha visto il tramonto sulle Tofane e ha capito perché si pernotta.
+
+Al mattino è uscito prima del caffè degli altri. Non verso il Photopoint subito: verso la croce, poi un tratto indietro verso la memoria — feritoie, aria delle gallerie ancora nelle ossa dal giorno in cui era sceso con casco e frontale. Solo alle otto e cinquantatré si è fermato sulla pedana, di spalle, mentre due ospiti del rifugio già chiacchieravano al tavolino con i bicchieri in mano.
+
+#629 è la storia di chi arriva in vetta due volte: la prima con la folla, la seconda con l’alba. Il Photopoint coglie la seconda. Il viaggio vero è la notte in mezzo.
+
+---
+
+## 598
+
+**Asset:** `assets/media/stories/65761-f1-2026-07-11T15-44-58-big.jpg` · 11.07.2026
+
+### Breve
+L’abito e lo smoking sono saliti in funivia con il fotografo; loro hanno voluto il Sentiero del Fronte a piedi, polvere sui pantaloni da trekking. Si sono cambiati in rifugio, ridendo. Un sì tra gallerie di guerra e oceano di vette. Hiking nuziale: la cima al posto dell’altare.
+
+### Esteso
+L’abito e lo smoking non sono saliti sulle loro spalle per tutto il dislivello — sarebbe stato cinema, non vita. Li avevano lasciati a Cortina; un amico fotografo li ha portati su in funivia, come nelle storie di elopement che si leggono sui siti dei wedding photographer. Loro, invece, hanno voluto arrivare a piedi: Sentiero del Fronte, polvere fine sull’orlo dei pantaloni da trekking, mani che sapevano già di pietra.
+
+Sotto i vestiti da sposi c’erano ancora i calzini sudati del cammino. Si sono cambiati dietro una porta del rifugio, ridendo nervosi, mentre fuori i turisti ordinavano birra. Avevano scelto il Lagazuoi perché sotto i piedi ci sono le gallerie della Grande Guerra e sopra c’è un oceano di vette — e perché un sì detto qui non somiglia a nessun sì da salone. Venivano da lontano, lontanissimo, ma una persona li legava a quel luogo, e loro volevano legarsi ulteriormente.
+
+Quando sono usciti in smoking e tulle, il vento ha provato a sollevare la gonna e qualcuno in canotta ha tagliato il bordo del mondo senza fermarsi. #598 è hiking nuziale: non la cerimonia intera, ma il tratto di ghiaione in cui due persone hanno deciso che la cima, e non l’altare, era il posto giusto per cominciare.
+
+---
+
+## 890
+
+**Asset:** `assets/media/stories/67091-f1-2026-07-16T14-49-28-big.jpg` · 16.07.2026
+
+### Breve
+I bambini volevano la funivia; i genitori dissero «un pezzo a piedi». Il pezzo divenne seicentocinquanta metri di dislivello, pause ogni tre tornanti, snack in forcella. Niente galleria: troppo buia. In vetta pollice alzato e pile rosa. Arrivare insieme valeva più delle date delle mine.
+
+### Esteso
+I bambini avevano chiesto la funivia. I genitori avevano risposto: «Un pezzo a piedi, poi si vede». Da Falzarego il «pezzo» è diventato la salita vera — circa seicentocinquanta metri di dislivello che sui blog sembrano un numero e sulle gambe di un bambino in pile rosa diventano un’epopea. Hanno fatto pause ogni tre tornanti. Hanno contato camosci che forse erano pietre. Hanno mangiato snack sulla Forcella Lagazuoi mentre un giovane con lo zaino giallo spiegava al cannocchiale delle cose troppo grandi.
+
+Non hanno fatto la galleria: troppo buia per i più piccoli, dicevano le guide. Hanno seguito il cielo. In vetta il bambino ha alzato il pollice prima ancora dello scatto; la bambina era già una bandiera rosa contro il calcare. Intorno, un uomo seduto a terra con i bastoncini rossi recuperava da una salita più dura della loro — e quella vista, per i genitori, è stata la lezione: la montagna tiene insieme chi arriva in tanti modi.
+
+#890 è una gita famigliare che sfiora la storia senza entrarci fino in fondo, e va bene così. Arrivare insieme contava più di sapere le date delle mine.
+
+---
+
+## 898
+
+**Asset:** `assets/media/stories/72700-f1-2026-07-23T12-52-52-big.jpg` · 23.07.2026
+
+### Breve
+Non ha detto a nessuno dove andava. Alba, giacca mimetica, versante meno battuto: inseguiva un cerbiatto visto anni prima in Valparola. Ha evitato i gruppi del fronte, la baracca, le chiacchiere. In vetta nessun animale — solo lui e il fallimento. Una salita segreta, non da confessare al rifugio.
+
+### Esteso
+Non ha detto a nessuno dove andava. Ha preso l’auto prima dell’alba, ha lasciato Falzarego quando i primi pullman ancora dormivano, ed è salito dal versante meno battuto con la giacca mimetica e i bastoncini. Non era un cacciatore da trofeo da salotto. Era qualcuno che da anni inseguiva — o credeva di inseguire — un cerbiatto visto una sola volta in Valparola, una macchia chiara tra i mughi, e da allora trasformata in ossessione privata.
+
+Ha camminato in silenzio lungo linee che un secolo fa erano di rifornimento e di fuoco. Ha evitato i gruppi del Sentiero del Fronte. Ha passato la baracca degli ufficiali senza fermarsi: troppo tempo sospeso, troppa umanità. Voleva solo gli occhi dell’animale, o la prova di non averlo sognato. In alta quota la caccia è diventata altro — fiato, pazienza, il sospetto di essere lui il braccato dal vuoto.
+
+In vetta non c’era nessun cerbiatto. C’era il Photopoint, un turista nello zaino rosso chino sul cannocchiale, e lui in piedi con l’espressione di chi ha fallito una missione e, nello stesso istante, ha raggiunto comunque una cima. #898 è la storia di una salita segreta: non per la foto, per qualcosa che non si confessa al rifugio.
+
+---
+
+## 690
+
+**Asset:** `assets/media/stories/83531-f1-2026-10-03T07-09-36-big_colette.jpg` · Colette · 03.10.2026
+
+### Breve
+Aveva letto che dopo le diciassette il Lagazuoi cambia pelle. Ottobre, funivia il pomeriggio, notte in rifugio mentre la folla scende. All’alba: sole di taglio, valle in foschia, terrazza vuota. Ha comprato con una notte ciò che i day-tripper non vedono. L’alba è la ricevuta.
+
+### Esteso
+Aveva letto che dopo le diciassette il Lagazuoi cambia pelle. Per questo aveva prenotato ottobre — stagione corta, meno code, ultima luce. Era salita nel pomeriggio con la funivia, perché il giorno dopo voleva le gambe fresche per l’alba, non per dimostrare nulla. Aveva cenato guardando le Tofane spopolarsi; aveva sentito il silenzio arrivare come un ospite in ritardo.
+
+Di notte, dalla camerata, il vento raccontava la stessa storia di sempre: pietra forata, gallerie sotto i piedi, nemici di ieri diventati museo. Al mattino è uscita alle sette e nove, quando il sole tagliava ancora di filo e la valle a destra restava in foschia. Nessuna borsa Lidl, nessun bacio da mezzogiorno. Solo lei, la giacca pesante, e la certezza di aver comprato con una notte in rifugio ciò che i day-tripper non vedono.
+
+#690 è il viaggio breve e verticale di chi sale per restare — non per consumare la vista in un’ora. Il Photopoint all’alba è solo la ricevuta.
+
+---
+
+## 683
+
+**Asset:** `assets/media/stories/92239-f1-2026-10-03T07-42-16-big_giulio.jpg` · Giulio · 03.10.2026
+
+### Breve
+Voleva la luce, non la folla. Buio a Falzarego, Sentiero dei Kaiserjäger, reflex e maglione arancio contro il calcare. Salendo ha pensato ai portatori e ai bengala. In vetta: caffè, macchina sul tavolo, corpo fermo dove la luce finalmente lavora. Non caccia animali: caccia un’ora.
+
+### Esteso
+Voleva la luce, non la folla. Aveva lasciato l’auto a Falzarego al buio e aveva preso il Sentiero dei Kaiserjäger — la memoria austriaca, cenge e vuoto — con la reflex nello zaino e il maglione arancio scelto apposta per leggere contro il calcare. Non cacciava animali. Cacciava un’ora: quella in cui le stratificazioni delle Tofane smettono di essere cartolina e diventano volume.
+
+Salendo ha pensato ai Kaiserjäger che portavano viveri su quel tracciato, ai bengala, al silenzio obbligato. Ha scattato poco: risparmiava batteria e attenzione. In vetta ha ordinato un caffè, ha posato la macchina sul tavolino del Photopoint, ha aspettato che il vapore della tazzina gli dicesse che era vivo e non solo un occhio dietro l’ottica.
+
+Mezz’ora prima, sulla stessa terrazza, c’era #690. Forse si sono sfiorati senza parlarsi — due solitudini d’ottobre cucite dallo stesso azzurro. #683 è la storia di una salita fatta di esposizione e pazienza: arrivare in cima non per celebrarsi, ma per mettere infine il corpo fermo dove la luce, finalmente, lavora.
+
+---
+
+## Nota d’uso
+
+- **Titolo UI:** solo il codice a tre cifre.  
+- **Breve:** 250–300 caratteri (card, overlay, anteprima).  
+- **Esteso:** viaggio completo verso la vetta.  
+- Contesto storico/turistico: `lagazuoi-contesto.md`.

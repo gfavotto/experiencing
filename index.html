@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peak Prompt</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app" class="stage">
+      <div class="col-grid" aria-hidden="true">
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+      </div>
+      <h1 class="title" aria-label="peak prompt">
+        <span class="title-peak">peak</span>
+        <span class="title-prompt">prompt</span>
+      </h1>
+      <button type="button" class="spin" id="spin" aria-label="Gira la ruota delle storie">
+        spin
+      </button>
+      <button
+        type="button"
+        class="home-ring"
+        id="home-ring"
+        aria-label="Torna alla home"
+        hidden
+      ></button>
+      <aside class="story-panel" id="story-panel" hidden aria-live="polite">
+        <div class="story-panel-inner">
+          <p class="story-panel-datetime" id="story-panel-datetime"></p>
+          <div class="story-panel-body" id="story-panel-body"></div>
+        </div>
+      </aside>
+      <!-- Fixed viewpoint (never animated) -->
+      <div class="view" id="view">
+        <!-- Single rotating 3D root: images + texts as direct children (Safari-safe) -->
+        <div class="rig" id="rig" aria-label="Storie Photopoint Lagazuoi"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
