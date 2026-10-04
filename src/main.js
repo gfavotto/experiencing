@@ -134,9 +134,40 @@ const SPIN_MS_MIN = 3200;
 const SPIN_MS_MAX = 6200;
 const SPIN_TURNS_MIN = 4;
 const SPIN_TURNS_MAX = 8;
+/** Story ids hidden from the two circumferences (and spin deck). */
+const RING_EXCLUDE_IDS = new Set(["83531"]);
+/** “prompt” hangs as a pointer during spin (deg). */
+const PROMPT_POINTER_DEG = 90;
+/** Extra flex when a story peg passes the pointer (deg). */
+const PROMPT_FLEX_DEG = 10;
+/** Ring degrees of travel to fully deploy the 90° pointer pose. */
+const PROMPT_DEPLOY_RING_DEG = 90;
+/** Per-frame spring toward 0 after each peg hit. */
+const PROMPT_FLEX_SPRING = 0.22;
+/** Per-frame return of the base pointer angle after settle. */
+const PROMPT_RETURN_SPRING = 0.12;
 /** Peak rate at spin start (Web Audio BufferSource — works better than HTMLAudio on Safari). */
 const BED_RATE_SPIN_MAX = 5;
 const BED_RATE_HOME = 1;
+/** Idle yaw for code-reveal pages — same pace as GPS cloud (~0.00062 rad/frame). */
+const CODE_REVEAL_SPIN_DEG = (0.00062 * 180) / Math.PI;
+/** Wheel zoom limits for the code-page stack. */
+const CODE_REVEAL_SCALE_MIN = 0.55;
+const CODE_REVEAL_SCALE_MAX = 4.5;
+/** Intro splash before rings + GPS appear. */
+const BOOT_SPLASH_MS = 2000;
+const BOOT_SPLASH_COPY = {
+  it: "10 esperienze\nquali sono vissute e quali no?",
+  en: "10 experiences\nwhich are lived and which are not?",
+};
+const CODE_REVEAL_CAPTION_COPY = {
+  it: "no, non è un'esperienza realmente vissuta",
+  en: "no, this is not a truly lived experience",
+};
+const REAL_CONFIRM_COPY = {
+  it: "sì, questo è un pezzo di vita realmente vissuta",
+  en: "yes, this is a piece of life truly lived",
+};
 /** Home bed loop level (+20% vs unity). */
 const BED_GAIN_HOME = 1.2;
 /** Fade-out duration for bed + outer text after settle. */
@@ -191,6 +222,7 @@ function loadStories() {
   }
 
   return [...byId.entries()]
+    .filter(([id]) => !RING_EXCLUDE_IDS.has(id))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, frames]) => {
       const copy = STORY_COPY[id] ?? {
@@ -371,10 +403,14 @@ function boot() {
   const storyAuth = document.querySelector("#story-auth");
   const storyAuthReal = document.querySelector("#story-auth-real");
   const storyAuthFake = document.querySelector("#story-auth-fake");
+  const storyAuthOr = document.querySelector("#story-auth-or");
   const storyMedia = document.querySelector("#story-media");
   const storyMediaGrid = document.querySelector("#story-media-grid");
   const viewEl = document.querySelector("#view");
   const titleEl = document.querySelector(".title");
+  const titlePrompt = document.querySelector(".title-prompt");
+  const bootSplash = document.querySelector("#boot-splash");
+  const realConfirm = document.querySelector("#real-confirm");
   const void404 = document.querySelector("#void-404");
   const lightbox = document.querySelector("#lightbox");
   const lightboxImage = document.querySelector("#lightbox-image");
@@ -382,6 +418,7 @@ function boot() {
   const lightboxClose = document.querySelector("#lightbox-close");
   const codeReveal = document.querySelector("#code-reveal");
   const codeRevealRig = document.querySelector("#code-reveal-rig");
+  const codeRevealCaption = document.querySelector("#code-reveal-caption");
   /** @type {(() => void)[]} */
   let activeObjDisposers = [];
   /** @type {HTMLVideoElement[]} */
@@ -401,7 +438,10 @@ function boot() {
   let activeSettledStory = null;
   let voidCollapsing = false;
   let codeRevealing = false;
+  let realConfirming = false;
   let codeRevealBuilt = false;
+  /** @type {{ triggerFirework: () => void, reset: () => void } | null} */
+  let pathPointsApi = null;
   /** @type {number | null} */
   let voidHoldTimer = null;
   /** @type {number | null} */
@@ -426,13 +466,18 @@ function boot() {
     !(storyAuth instanceof HTMLElement) ||
     !(storyAuthReal instanceof HTMLButtonElement) ||
     !(storyAuthFake instanceof HTMLButtonElement) ||
+    !(storyAuthOr instanceof HTMLElement) ||
     !(storyMedia instanceof HTMLElement) ||
     !(storyMediaGrid instanceof HTMLElement) ||
     !(viewEl instanceof HTMLElement) ||
     !(titleEl instanceof HTMLElement) ||
+    !(titlePrompt instanceof HTMLElement) ||
+    !(bootSplash instanceof HTMLElement) ||
+    !(realConfirm instanceof HTMLElement) ||
     !(void404 instanceof HTMLElement) ||
     !(codeReveal instanceof HTMLElement) ||
     !(codeRevealRig instanceof HTMLElement) ||
+    !(codeRevealCaption instanceof HTMLElement) ||
     !(lightbox instanceof HTMLElement) ||
     !(lightboxImage instanceof HTMLImageElement) ||
     !(lightboxVideo instanceof HTMLVideoElement) ||
@@ -440,8 +485,6 @@ function boot() {
   ) {
     return;
   }
-
-  mountPathPoints(pathPointsHost, loadGpxPoints());
 
   const stories = loadStories();
   if (!stories.length) {
@@ -637,8 +680,10 @@ function boot() {
     storyAuth.setAttribute("aria-hidden", "true");
     storyAuthReal.textContent = "";
     storyAuthFake.textContent = "";
+    storyAuthOr.textContent = "or";
     storyAuthReal.disabled = false;
     storyAuthFake.disabled = false;
+    spinBtn.hidden = false;
     storyMedia.classList.remove("is-visible");
     storyMedia.hidden = true;
     storyMediaGrid.replaceChildren();
@@ -658,6 +703,7 @@ function boot() {
   }
 
   function showVoid404() {
+    void404.textContent = storyLang === "en" ? "fake" : "finto";
     void404.hidden = false;
     void404.setAttribute("aria-hidden", "false");
     window.requestAnimationFrame(() => {
@@ -754,7 +800,7 @@ function boot() {
    * most elements fall; GPS rushes toward camera (same phase).
    */
   function triggerVoidCollapse() {
-    if (voidCollapsing) return;
+    if (voidCollapsing || realConfirming || codeRevealing) return;
     voidCollapsing = true;
     closeLightbox();
     storyAuthReal.disabled = true;
@@ -808,7 +854,7 @@ function boot() {
       const exitAnimMs = 1600;
       const homeMs = Math.round((lastDelay + exitAnimMs + 250) * 0.85);
 
-      // 404 briefly, early — then black until exits finish
+      // Fake label briefly, early — then black until exits finish
       const show404Ms = Math.max(280, Math.round(lastDelay * 0.35));
       void404Timer = window.setTimeout(() => {
         void404Timer = null;
@@ -816,7 +862,7 @@ function boot() {
         void404HideTimer = window.setTimeout(() => {
           void404HideTimer = null;
           hideVoid404();
-        }, 504);
+        }, 950);
       }, show404Ms);
 
       voidHomeTimer = window.setTimeout(() => {
@@ -828,12 +874,46 @@ function boot() {
 
   function hideCodeReveal() {
     codeRevealing = false;
+    codeRevealDragging = false;
+    codeRevealMoved = false;
+    codeReveal.classList.remove("is-visible");
     document.body.classList.remove("is-code-reveal");
     codeReveal.hidden = true;
     codeReveal.setAttribute("aria-hidden", "true");
   }
 
-  /** Build one parallelepiped: vertical pages in a single spaced sequence (once). */
+  /** @type {number} */
+  let codeRevealRotY = -35;
+  /** @type {number} */
+  let codeRevealRotX = 0;
+  /** @type {number} */
+  let codeRevealScale = 1;
+  let codeRevealDragging = false;
+  let codeRevealMoved = false;
+  let codeRevealLastX = 0;
+  let codeRevealLastY = 0;
+
+  function applyCodeRevealTransform() {
+    setTransform(
+      codeRevealRig,
+      [
+        `rotateY(${codeRevealRotY}deg)`,
+        `rotateX(${codeRevealRotX}deg)`,
+        `scale(${codeRevealScale})`,
+      ].join(" "),
+    );
+  }
+
+  function resetCodeRevealOrbit() {
+    codeRevealRotY = -35;
+    codeRevealRotX = 0;
+    codeRevealScale = 1;
+    codeRevealDragging = false;
+    codeRevealMoved = false;
+    applyCodeRevealTransform();
+  }
+
+  /** Build one parallelepiped: upright pages in a single spaced sequence (once). */
   function buildCodeRevealPages() {
     if (codeRevealBuilt) return;
     codeRevealBuilt = true;
@@ -852,7 +932,7 @@ function boot() {
     if (!n) return;
 
     // Parallel vertical planes along Z → one rectangular volume with air gaps
-    const gapZ = 3.1; // vw between faces
+    const gapZ = 3.6; // vw between faces
     const originZ = ((n - 1) * gapZ) / 2;
 
     pages.forEach((page, i) => {
@@ -882,7 +962,7 @@ function boot() {
    * User marked a fake story as real: strip the world, show the source wall.
    */
   function triggerCodeReveal() {
-    if (codeRevealing || voidCollapsing) return;
+    if (codeRevealing || voidCollapsing || realConfirming) return;
     codeRevealing = true;
     closeLightbox();
     stopBed();
@@ -890,20 +970,29 @@ function boot() {
     storyAuthFake.disabled = true;
     hideStoryPanel();
     buildCodeRevealPages();
-    document.body.classList.add("is-code-reveal");
+    resetCodeRevealOrbit();
+    syncCodeRevealCaption();
+    codeReveal.classList.remove("is-visible");
     codeReveal.hidden = false;
     codeReveal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("is-code-reveal");
     homeBtn.hidden = false;
     spinBtn.disabled = true;
+    // Double rAF so the browser paints opacity:0 before fading in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (codeRevealing) codeReveal.classList.add("is-visible");
+      });
+    });
   }
 
   /**
    * @param {"real" | "fake"} guess
    */
   function onAuthGuess(guess) {
-    if (voidCollapsing || codeRevealing || !settled) return;
+    if (voidCollapsing || codeRevealing || realConfirming || !settled) return;
     if (guess === "real" && activeStoryReal) {
-      // Real story marked real — no effect for now
+      triggerRealConfirm();
       return;
     }
     if (guess === "real" && !activeStoryReal) {
@@ -991,14 +1080,19 @@ function boot() {
     if (storyLang === "en") {
       storyAuthReal.textContent = "real";
       storyAuthFake.textContent = "fake";
+      storyAuthOr.textContent = "or";
+      storyAuth.setAttribute("aria-label", "real or fake?");
     } else {
       storyAuthReal.textContent = "reale";
       storyAuthFake.textContent = "finto";
+      storyAuthOr.textContent = "o";
+      storyAuth.setAttribute("aria-label", "reale o finto?");
     }
     storyAuthReal.disabled = false;
     storyAuthFake.disabled = false;
     storyAuth.hidden = false;
     storyAuth.setAttribute("aria-hidden", "false");
+    spinBtn.hidden = true;
 
     for (const dispose of activeObjDisposers) dispose();
     activeObjDisposers = [];
@@ -1191,6 +1285,7 @@ function boot() {
     codeRevealing = false;
     resetVoidCollapse();
     hideCodeReveal();
+    hideRealConfirm();
     hideStoryPanel();
     state.rotation = -slotIndex * itemAngle;
     state.increment = 0;
@@ -1201,6 +1296,7 @@ function boot() {
     homeBtn.hidden = false;
     spinBtn.disabled = false;
     document.body.classList.remove("is-spinning");
+    resetPromptPointer();
     syncStoryUrl(story.id);
     render();
     if (opts.immediate) {
@@ -1261,6 +1357,13 @@ function boot() {
   let fortuneDeck = /** @type {number[]} */ ([]);
   /** Last landed story index in `stories` — avoid back-to-back across reshuffle. */
   let lastFortuneStory = -1;
+
+  /** “prompt” pointer: base hang angle + flex from peg hits. */
+  let promptBase = 0;
+  let promptFlex = 0;
+  let promptPrevRot = state.rotation;
+  let promptLastSlot = Math.floor((-state.rotation) / itemAngle);
+  let promptActive = false;
 
   /** Draw next fortune story index with a shuffled deck (more even outcomes). */
   function drawFortuneStoryIndex() {
@@ -1639,6 +1742,57 @@ function boot() {
     document.documentElement.lang = storyLang === "en" ? "en" : "it";
   }
 
+  function syncBootSplashText() {
+    bootSplash.textContent =
+      storyLang === "en" ? BOOT_SPLASH_COPY.en : BOOT_SPLASH_COPY.it;
+  }
+
+  function syncCodeRevealCaption() {
+    codeRevealCaption.textContent =
+      storyLang === "en"
+        ? CODE_REVEAL_CAPTION_COPY.en
+        : CODE_REVEAL_CAPTION_COPY.it;
+  }
+
+  function syncRealConfirmText() {
+    realConfirm.textContent =
+      storyLang === "en" ? REAL_CONFIRM_COPY.en : REAL_CONFIRM_COPY.it;
+  }
+
+  function hideRealConfirm() {
+    realConfirming = false;
+    realConfirm.classList.remove("is-visible");
+    realConfirm.hidden = true;
+    realConfirm.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("is-real-confirm");
+    pathPointsApi?.reset();
+  }
+
+  /**
+   * User marked a real story as real: affirm + firework on the GPS trail.
+   */
+  function triggerRealConfirm() {
+    if (realConfirming || voidCollapsing || codeRevealing) return;
+    realConfirming = true;
+    storyAuthReal.disabled = true;
+    storyAuthFake.disabled = true;
+    storyAuth.classList.remove("is-visible");
+    storyAuth.hidden = true;
+    storyAuth.setAttribute("aria-hidden", "true");
+    spinBtn.hidden = true;
+    syncRealConfirmText();
+    realConfirm.hidden = false;
+    realConfirm.setAttribute("aria-hidden", "false");
+    document.body.classList.add("is-real-confirm");
+    homeBtn.hidden = false;
+    pathPointsApi?.triggerFirework();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (realConfirming) realConfirm.classList.add("is-visible");
+      });
+    });
+  }
+
   /**
    * Apply current `storyLang` to story objects + visible UI.
    */
@@ -1653,9 +1807,12 @@ function boot() {
       const briefEl = slot.text.querySelector(".text-item-brief");
       if (briefEl) briefEl.textContent = ring[i].brief;
     });
-    if (settled && activeSettledStory) {
+    if (settled && activeSettledStory && !realConfirming && !codeRevealing) {
       showStoryPanel(activeSettledStory);
     }
+    syncBootSplashText();
+    syncCodeRevealCaption();
+    syncRealConfirmText();
     syncLangButtons();
   }
 
@@ -1697,6 +1854,62 @@ function boot() {
     setTransform(rig, `rotateY(${state.rotation}deg)`);
   }
 
+  /**
+   * “prompt” as a flexible fortune-wheel pointer:
+   * deploys to 90° at a rate tied to ring travel, flicks +10° on each
+   * story crossing, then springs back.
+   */
+  function resetPromptPointer() {
+    promptBase = 0;
+    promptFlex = 0;
+    promptActive = false;
+    promptPrevRot = state.rotation;
+    promptLastSlot = Math.floor((-state.rotation) / itemAngle);
+    setTransform(titlePrompt, "rotate(0deg)");
+  }
+
+  function updatePromptPointer() {
+    const dRot = state.rotation - promptPrevRot;
+    promptPrevRot = state.rotation;
+    const ringTravel = Math.abs(dRot);
+
+    if (promptActive && fortune?.active) {
+      // Deploy 90° proportionally to how fast the rings are moving
+      if (promptBase < PROMPT_POINTER_DEG && ringTravel > 0) {
+        promptBase = Math.min(
+          PROMPT_POINTER_DEG,
+          promptBase +
+            ringTravel * (PROMPT_POINTER_DEG / PROMPT_DEPLOY_RING_DEG),
+        );
+      }
+
+      // Peg hit: a story slot just crossed the front indicator line
+      const slot = Math.floor((-state.rotation) / itemAngle);
+      if (slot !== promptLastSlot) {
+        promptFlex = PROMPT_FLEX_DEG;
+        promptLastSlot = slot;
+      }
+    } else if (promptBase > 0.05 || promptFlex > 0.05) {
+      // Fold the pointer back after the wheel settles
+      promptBase += (0 - promptBase) * PROMPT_RETURN_SPRING;
+      if (promptBase < 0.05) promptBase = 0;
+    } else if (!promptActive) {
+      promptBase = 0;
+      promptFlex = 0;
+    }
+
+    // Flexible return after each peg (and after settle)
+    promptFlex += (0 - promptFlex) * PROMPT_FLEX_SPRING;
+    if (promptFlex < 0.05) promptFlex = 0;
+
+    if (!promptActive && promptBase === 0 && promptFlex === 0) {
+      setTransform(titlePrompt, "rotate(0deg)");
+      return;
+    }
+
+    setTransform(titlePrompt, `rotate(${promptBase + promptFlex}deg)`);
+  }
+
   function advanceSequences(now) {
     for (const seq of sequences) {
       if (seq.imgs.length < 2 || now < seq.nextAt) continue;
@@ -1711,13 +1924,22 @@ function boot() {
   }
 
   function startFortuneSpin() {
-    if (fortune?.active || voidCollapsing || codeRevealing) return;
+    if (
+      fortune?.active ||
+      voidCollapsing ||
+      codeRevealing ||
+      realConfirming ||
+      document.body.classList.contains("is-booting")
+    ) {
+      return;
+    }
 
     dragging = false;
     settled = false;
     homeBtn.hidden = true;
     resetVoidCollapse();
     hideCodeReveal();
+    hideRealConfirm();
     hideStoryPanel();
     setRingVisibility(null);
     state.increment = 0;
@@ -1748,6 +1970,11 @@ function boot() {
       slotIndex,
     };
 
+    promptActive = true;
+    promptPrevRot = state.rotation;
+    promptLastSlot = Math.floor((-state.rotation) / itemAngle);
+    promptFlex = 0;
+
     startBedSpin();
     spinBtn.disabled = true;
     document.body.classList.add("is-spinning");
@@ -1766,6 +1993,7 @@ function boot() {
         scheduleStopBedAfterSettle();
         fortune.active = false;
         fortune = null;
+        promptActive = false;
         spinBtn.disabled = false;
         document.body.classList.remove("is-spinning");
         settled = true;
@@ -1784,11 +2012,23 @@ function boot() {
 
     advanceSequences(now);
     render();
+    updatePromptPointer();
+    if (codeRevealing && !codeRevealDragging) {
+      codeRevealRotY += CODE_REVEAL_SPIN_DEG;
+      applyCodeRevealTransform();
+    }
     requestAnimationFrame(frame);
   }
 
   function onPointerDown(e) {
-    if (fortune?.active || voidCollapsing || codeRevealing) return;
+    if (
+      fortune?.active ||
+      voidCollapsing ||
+      codeRevealing ||
+      document.body.classList.contains("is-booting")
+    ) {
+      return;
+    }
     if (e.target instanceof Element && e.target.closest("#spin")) return;
     if (
       e.target instanceof Node &&
@@ -1848,12 +2088,14 @@ function boot() {
     settled = false;
     resetVoidCollapse();
     hideCodeReveal();
+    hideRealConfirm();
     hideStoryPanel();
     setRingVisibility(null);
     homeBtn.hidden = true;
     state.targetIncrement = AUTO_INCREMENT;
     spinBtn.disabled = false;
     document.body.classList.remove("is-spinning");
+    resetPromptPointer();
     syncStoryUrl(null);
     playBedHome();
   }
@@ -1885,10 +2127,63 @@ function boot() {
     goHome();
   });
 
-  codeReveal.addEventListener("click", (e) => {
+  codeReveal.addEventListener("pointerdown", (e) => {
+    if (!codeRevealing) return;
+    if (e.target instanceof Element && e.target.closest("#home-ring")) return;
     e.stopPropagation();
-    if (codeRevealing) goHome();
+    codeRevealDragging = true;
+    codeRevealMoved = false;
+    codeRevealLastX = e.clientX;
+    codeRevealLastY = e.clientY;
+    try {
+      codeReveal.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   });
+  codeReveal.addEventListener("pointermove", (e) => {
+    if (!codeRevealDragging || !codeRevealing) return;
+    e.stopPropagation();
+    const dx = e.clientX - codeRevealLastX;
+    const dy = e.clientY - codeRevealLastY;
+    codeRevealLastX = e.clientX;
+    codeRevealLastY = e.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 2) codeRevealMoved = true;
+    // Classic orbit: horizontal → yaw, vertical → pitch
+    codeRevealRotY += dx * 0.4;
+    codeRevealRotX = Math.max(-80, Math.min(80, codeRevealRotX - dy * 0.4));
+    applyCodeRevealTransform();
+  });
+  codeReveal.addEventListener("pointerup", (e) => {
+    if (!codeRevealDragging) return;
+    e.stopPropagation();
+    codeRevealDragging = false;
+    try {
+      codeReveal.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    // Tap without drag still exits (home / Escape also work)
+    if (!codeRevealMoved && codeRevealing) goHome();
+  });
+  codeReveal.addEventListener("pointercancel", () => {
+    codeRevealDragging = false;
+  });
+  codeReveal.addEventListener(
+    "wheel",
+    (e) => {
+      if (!codeRevealing) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      codeRevealScale = Math.min(
+        CODE_REVEAL_SCALE_MAX,
+        Math.max(CODE_REVEAL_SCALE_MIN, codeRevealScale * factor),
+      );
+      applyCodeRevealTransform();
+    },
+    { passive: false },
+  );
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && codeRevealing) {
       e.preventDefault();
@@ -1908,9 +2203,32 @@ function boot() {
   const deepStory = resolveStoryParam(
     new URLSearchParams(window.location.search).get("story"),
   );
-  if (deepStory >= 0) {
-    landOnStory(deepStory, { immediate: true });
-  }
+
+  // Intro: hide rings + GPS for 2s, show centered prompt
+  syncBootSplashText();
+  bootSplash.hidden = false;
+  document.body.classList.add("is-booting");
+  spinBtn.disabled = true;
+
+  window.setTimeout(() => {
+    // Mount GPS only after the splash — avoids a one-frame flash on refresh
+    pathPointsApi = mountPathPoints(pathPointsHost, loadGpxPoints()) ?? null;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.body.classList.remove("is-booting");
+        bootSplash.classList.add("is-leaving");
+        window.setTimeout(() => {
+          bootSplash.hidden = true;
+          bootSplash.classList.remove("is-leaving");
+        }, 550);
+        if (deepStory >= 0) {
+          landOnStory(deepStory, { immediate: true });
+        } else if (!settled && !fortune?.active) {
+          spinBtn.disabled = false;
+        }
+      });
+    });
+  }, BOOT_SPLASH_MS);
 }
 
 boot();

@@ -47,7 +47,7 @@ body.is-void-invert-home .home-ring {
 .path-points,
 .home-ring,
 .carousel-item {
-  transition: filter 0.55s ease;
+  transition: filter 0.55s ease, opacity 0.65s ease;
 }
 
 .void-404 {
@@ -58,14 +58,19 @@ body.is-void-invert-home .home-ring {
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 0;
+  padding: 1.5rem 8vw;
+  box-sizing: border-box;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 700;
   font-size: var(--title-size);
   line-height: 1;
-  letter-spacing: -0.04em;
-  color: #ffffff;
+  letter-spacing: -0.02em;
+  color: #47c14d;
+  text-align: center;
+  text-transform: lowercase;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
   opacity: 0;
   transition: opacity 0.45s ease;
 }
@@ -119,8 +124,8 @@ body.is-void-collapse .text-item {
 }
 
 .path-points.is-void-fall.is-void-rushing {
-  -webkit-transform: translate(-50%, -50%) scale(14);
-  transform: translate(-50%, -50%) scale(14);
+  -webkit-transform: translate(-50%, -50%) translateY(var(--ring-lift)) scale(14);
+  transform: translate(-50%, -50%) translateY(var(--ring-lift)) scale(14);
   opacity: 0;
   pointer-events: none;
   transition:
@@ -187,6 +192,94 @@ body.is-void-collapse .text-item {
 .title-peak,
 .title-prompt {
   text-align: center;
+}
+
+/* Fortune-wheel pointer: pivots just left of the leading “p” */
+.title-prompt {
+  display: inline-block;
+  transform-origin: -0.12em 50%;
+  will-change: transform;
+}
+
+.boot-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 1.5rem 8vw;
+  box-sizing: border-box;
+  pointer-events: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #47c14d;
+  text-align: center;
+  white-space: pre-line;
+  opacity: 1;
+  transition: opacity 0.55s ease;
+}
+
+.boot-splash[hidden] {
+  display: none;
+}
+
+.boot-splash.is-leaving {
+  opacity: 0;
+}
+
+.real-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 1.5rem 8vw;
+  box-sizing: border-box;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #47c14d;
+  text-align: center;
+  white-space: pre-line;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.real-confirm.is-visible {
+  opacity: 1;
+}
+
+.real-confirm[hidden] {
+  display: none;
+}
+
+.real-confirm.is-visible[hidden] {
+  display: flex;
+}
+
+body.is-real-confirm .path-points {
+  z-index: 35;
+}
+
+body.is-booting .carousel-item,
+body.is-booting .text-item,
+body.is-booting .path-points {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
 }
 
 .spin {
@@ -313,6 +406,8 @@ body.is-void-collapse .text-item {
   --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 3pt);
   --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
   --title-top-pad: calc(1.75rem - 5pt);
+  /* Rings + GPS + story media: lifted toward “peak prompt” */
+  --ring-lift: calc(-3vh + 5pt);
   --col-count: 5;
   --col-gap: 15px;
   --col-pad-left: 5px;
@@ -387,18 +482,18 @@ body.is-void-collapse .text-item {
   column-fill: auto;
 }
 
-/* Opposite the extended story: real/fake label, vertically centered */
+/* Replaces #spin once a story is open: “real or fake?” */
 .story-auth {
   position: absolute;
-  top: calc(var(--title-top-pad) + var(--title-size) + 42pt);
-  right: var(--col-pad-left);
-  z-index: 30;
+  left: 50%;
+  bottom: calc(1.75rem - 5pt);
+  z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  width: calc(var(--col-track) * 2 + var(--col-gap));
-  height: 60%;
-  box-sizing: border-box;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--settle-fade-ms, 1s) ease;
@@ -417,27 +512,44 @@ body.is-void-collapse .text-item {
   display: flex;
 }
 
-.story-auth-choices {
+.story-auth-prompt {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
-  pointer-events: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.28em;
+  margin: 0;
+  pointer-events: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-align: center;
+  text-transform: lowercase;
+}
+
+.story-auth-or,
+.story-auth-mark {
+  pointer-events: none;
+  user-select: none;
 }
 
 .story-auth-choice {
-  display: block;
+  display: inline;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
-  font-family: "Times New Roman", Times, serif;
-  font-size: var(--story-full-size);
-  font-weight: 400;
-  line-height: 1.35;
-  text-align: right;
-  color: #000000;
+  pointer-events: auto;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-transform: inherit;
   -webkit-appearance: none;
   appearance: none;
 }
@@ -482,7 +594,7 @@ body.is-void-collapse .text-item {
   left: 50%;
   width: min(52vw, 68vh);
   height: min(52vw, 68vh);
-  transform: translate(-50%, -50%) translateY(calc(-5vh + 5pt));
+  transform: translate(-50%, -50%) translateY(var(--ring-lift));
   -webkit-perspective: 90vw;
   perspective: 90vw;
   -webkit-perspective-origin: 50% 50%;
@@ -663,8 +775,8 @@ body.is-void-collapse .text-item {
 .view {
   position: absolute;
   inset: 0;
-  -webkit-transform: perspective(90vw) translateY(calc(-5vh + 5pt)) rotateX(-7deg);
-  transform: perspective(90vw) translateY(calc(-5vh + 5pt)) rotateX(-7deg);
+  -webkit-transform: perspective(90vw) translateY(var(--ring-lift)) rotateX(-7deg);
+  transform: perspective(90vw) translateY(var(--ring-lift)) rotateX(-7deg);
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
   -webkit-transform-origin: center center;
@@ -679,7 +791,7 @@ body.is-void-collapse .text-item {
   z-index: 0;
   width: min(56vw, 84vh);
   height: min(56vw, 84vh);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translateY(var(--ring-lift));
   pointer-events: none;
 }
 
@@ -728,6 +840,13 @@ body.is-void-collapse .text-item {
   backface-visibility: visible;
   user-select: none;
   pointer-events: none;
+}
+
+.carousel-item {
+  opacity: 1;
+  transition:
+    opacity 0.65s ease,
+    filter 0.55s ease;
 }
 
 .text-item {
@@ -799,12 +918,17 @@ body.is-void-collapse .text-item {
 /* Fake story marked “real”: hide stage chrome, show source wall */
 body.is-code-reveal {
   background: #0a0a0a;
-  cursor: default;
+  cursor: grab;
+}
+
+body.is-code-reveal:active {
+  cursor: grabbing;
 }
 
 body.is-code-reveal .stage > :not(.code-reveal):not(.home-ring) {
-  visibility: hidden !important;
+  opacity: 0 !important;
   pointer-events: none !important;
+  transition: opacity 1.35s ease;
 }
 
 body.is-code-reveal .home-ring {
@@ -819,12 +943,48 @@ body.is-code-reveal .home-ring {
   overflow: hidden;
   perspective: min(140vw, 1600px);
   -webkit-perspective: min(140vw, 1600px);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 0;
+  transition: opacity 1.45s ease;
   background:
     radial-gradient(ellipse at 40% 30%, #1a1a12 0%, #0a0a0a 55%, #050505 100%);
 }
 
+.code-reveal.is-visible {
+  opacity: 1;
+}
+
 .code-reveal[hidden] {
   display: none;
+}
+
+.code-reveal.is-visible[hidden] {
+  display: block;
+}
+
+.code-reveal-caption {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 1.5rem 8vw;
+  box-sizing: border-box;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #47c14d;
+  text-align: center;
+  white-space: pre-line;
 }
 
 .code-reveal-scene {
@@ -845,17 +1005,9 @@ body.is-code-reveal .home-ring {
   -webkit-transform-style: preserve-3d;
   transform-origin: center center;
   -webkit-transform-origin: center center;
-  /* One parallelepiped of vertical pages, seen in 3/4 */
-  animation: code-reveal-drift 22s ease-in-out infinite alternate;
-}
-
-@keyframes code-reveal-drift {
-  from {
-    transform: rotateY(-42deg) rotateX(14deg) scale(0.88);
-  }
-  to {
-    transform: rotateY(-28deg) rotateX(20deg) scale(0.94);
-  }
+  /* Default: upright pages (no rotateX), 3/4 view on Y — JS orbit overrides */
+  transform: rotateY(-35deg);
+  -webkit-transform: rotateY(-35deg);
 }
 
 .code-page {
@@ -863,10 +1015,10 @@ body.is-code-reveal .home-ring {
   left: 0;
   top: 0;
   box-sizing: border-box;
-  width: min(28vw, 16rem);
-  height: min(62vh, 34rem);
+  width: min(35.7vw, 20.4rem);
+  height: min(66.3vh, 40.8rem);
   margin: 0;
-  padding: 0.45rem 0.4rem 0.5rem;
+  padding: 0.5rem 0.45rem 0.55rem;
   overflow: hidden;
   border: 1px solid rgba(232, 255, 0, 0.22);
   background: linear-gradient(165deg, #141410 0%, #0d0d0d 55%, #101208 100%);
@@ -875,7 +1027,7 @@ body.is-code-reveal .home-ring {
     0 18px 40px rgba(0, 0, 0, 0.55);
   color: #9aa86a;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 4.2px;
+  font-size: 5.3px;
   line-height: 1.18;
   letter-spacing: -0.02em;
   white-space: pre;
@@ -893,7 +1045,7 @@ body.is-code-reveal .home-ring {
   padding-bottom: 0.2rem;
   border-bottom: 1px solid rgba(232, 255, 0, 0.28);
   color: #e8ff00;
-  font-size: 5.5px;
+  font-size: 6.8px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -910,12 +1062,12 @@ body.is-code-reveal .home-ring {
 
 @media (max-width: 700px) {
   .code-page {
-    width: min(42vw, 11rem);
-    height: min(52vh, 24rem);
-    font-size: 3.2px;
+    width: min(49.3vw, 13.6rem);
+    height: min(57.8vh, 28.9rem);
+    font-size: 4.1px;
   }
 
   .code-page-name {
-    font-size: 4.2px;
+    font-size: 5.1px;
   }
 }

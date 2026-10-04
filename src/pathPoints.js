@@ -21,6 +21,10 @@ const POINT_SIZE = 0.4;
 /** World radius for start/end spheres (1/4 of previous 0.11). */
 const ENDPOINT_RADIUS = 0.0275;
 const POINT_COLOR = 0x47c14d;
+/** Phase 1: trail collapses to the center. */
+const FIREWORK_GATHER_MS = 1100;
+/** Phase 2: burst + fall. */
+const FIREWORK_BURST_MS = 2400;
 
 /**
  * @param {{ lat: number, lon: number }} a
@@ -134,9 +138,26 @@ function makeEndpoint(position) {
 }
 
 /**
+ * Random outward velocity with upward bias (firework spark).
+ * @param {THREE.Vector3} out
+ */
+function randomBurstVelocity(out) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const speed = 0.045 + Math.random() * 0.11;
+  out.set(
+    Math.sin(phi) * Math.cos(theta) * speed,
+    Math.abs(Math.cos(phi)) * speed * 0.85 + 0.04 + Math.random() * 0.05,
+    Math.sin(phi) * Math.sin(theta) * speed,
+  );
+  return out;
+}
+
+/**
  * 3D point cloud from GPS (lat / lon / ele). No other trail chrome.
  * @param {HTMLElement} host
  * @param {{ lat: number, lon: number, ele: number }[]} points
+ * @returns {{ triggerFirework: () => void, reset: () => void } | undefined}
  */
 export function mountPathPoints(host, points) {
   if (!points.length) return;
@@ -187,6 +208,8 @@ export function mountPathPoints(host, points) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  // Need CPU-side updates during the firework
+  geometry.attributes.position.usage = THREE.DynamicDrawUsage;
   const material = new THREE.PointsMaterial({
     color: POINT_COLOR,
     size: POINT_SIZE,
@@ -195,12 +218,15 @@ export function mountPathPoints(host, points) {
     opacity: 0.92,
     depthWrite: false,
   });
-  root.add(new THREE.Points(geometry, material));
+  const cloud = new THREE.Points(geometry, material);
+  root.add(cloud);
 
   const startPos = fitted[0];
   const endPos = fitted[fitted.length - 1];
-  root.add(makeEndpoint(startPos));
-  root.add(makeEndpoint(endPos));
+  const startMesh = makeEndpoint(startPos);
+  const endMesh = makeEndpoint(endPos);
+  root.add(startMesh);
+  root.add(endMesh);
 
   const startLabel = makeEleLabel(points[0].ele);
   startLabel.position.copy(startPos);
@@ -216,6 +242,16 @@ export function mountPathPoints(host, points) {
   camera.position.set(0.6, 3.6, 8.6);
   camera.lookAt(0, -0.35, 0);
 
+  /** @type {Float32Array} */
+  const basePositions = new Float32Array(positions);
+  /** @type {Float32Array | null} */
+  let velocities = null;
+  /** @type {"idle" | "gather" | "burst"} */
+  let fireworkPhase = "idle";
+  let fireworkStart = 0;
+  const tmpVel = new THREE.Vector3();
+  const gatherCenter = new THREE.Vector3(0, 0, 0);
+
   const resize = () => {
     const w = Math.max(1, host.clientWidth);
     const h = Math.max(1, host.clientHeight);
@@ -225,9 +261,121 @@ export function mountPathPoints(host, points) {
     camera.updateProjectionMatrix();
   };
 
+  function syncEndpointsFromArray(arr) {
+    startMesh.position.set(arr[0], arr[1], arr[2]);
+    const last = (fitted.length - 1) * 3;
+    endMesh.position.set(arr[last], arr[last + 1], arr[last + 2]);
+  }
+
+  function resetFirework() {
+    fireworkPhase = "idle";
+    velocities = null;
+    positions.set(basePositions);
+    geometry.attributes.position.needsUpdate = true;
+    material.opacity = 0.92;
+    material.size = POINT_SIZE;
+    startMesh.position.copy(startPos);
+    endMesh.position.copy(endPos);
+    startMesh.material.opacity = 1;
+    endMesh.material.opacity = 1;
+    startMesh.visible = true;
+    endMesh.visible = true;
+    startLabel.visible = true;
+    endLabel.visible = true;
+  }
+
+  function triggerFirework() {
+    positions.set(basePositions);
+    geometry.attributes.position.needsUpdate = true;
+    velocities = null;
+    startLabel.visible = false;
+    endLabel.visible = false;
+    material.opacity = 0.92;
+    material.size = POINT_SIZE;
+    fireworkStart = performance.now();
+    fireworkPhase = "gather";
+  }
+
+  function startBurst() {
+    // Snap everyone to the center, then assign burst velocities
+    const arr = /** @type {Float32Array} */ (geometry.attributes.position.array);
+    velocities = new Float32Array(fitted.length * 3);
+    for (let i = 0; i < fitted.length; i += 1) {
+      const ix = i * 3;
+      arr[ix] = gatherCenter.x;
+      arr[ix + 1] = gatherCenter.y;
+      arr[ix + 2] = gatherCenter.z;
+      randomBurstVelocity(tmpVel);
+      const kick = 0.85 + Math.random() * 0.55;
+      velocities[ix] = tmpVel.x * kick;
+      velocities[ix + 1] = tmpVel.y * kick;
+      velocities[ix + 2] = tmpVel.z * kick;
+    }
+    geometry.attributes.position.needsUpdate = true;
+    syncEndpointsFromArray(arr);
+    fireworkStart = performance.now();
+    fireworkPhase = "burst";
+  }
+
   const tick = () => {
     requestAnimationFrame(tick);
-    root.rotation.y += CLOUD_SPIN_RAD;
+
+    if (fireworkPhase === "gather") {
+      const elapsed = performance.now() - fireworkStart;
+      const u = Math.min(1, elapsed / FIREWORK_GATHER_MS);
+      // Ease-in-out: pull into a tight knot
+      const e = u * u * (3 - 2 * u);
+      const posAttr = geometry.attributes.position;
+      const arr = /** @type {Float32Array} */ (posAttr.array);
+
+      for (let i = 0; i < fitted.length; i += 1) {
+        const ix = i * 3;
+        arr[ix] = basePositions[ix] + (gatherCenter.x - basePositions[ix]) * e;
+        arr[ix + 1] =
+          basePositions[ix + 1] + (gatherCenter.y - basePositions[ix + 1]) * e;
+        arr[ix + 2] =
+          basePositions[ix + 2] + (gatherCenter.z - basePositions[ix + 2]) * e;
+      }
+      posAttr.needsUpdate = true;
+      syncEndpointsFromArray(arr);
+      // Slightly denser glow as they meet
+      material.size = POINT_SIZE * (1 + e * 0.6);
+
+      if (u >= 1) startBurst();
+    } else if (fireworkPhase === "burst" && velocities) {
+      const elapsed = performance.now() - fireworkStart;
+      const t = Math.min(1, elapsed / FIREWORK_BURST_MS);
+      const posAttr = geometry.attributes.position;
+      const arr = /** @type {Float32Array} */ (posAttr.array);
+
+      for (let i = 0; i < fitted.length; i += 1) {
+        const ix = i * 3;
+        velocities[ix + 1] -= 0.00135;
+        velocities[ix] *= 0.985;
+        velocities[ix + 1] *= 0.985;
+        velocities[ix + 2] *= 0.985;
+        arr[ix] += velocities[ix];
+        arr[ix + 1] += velocities[ix + 1];
+        arr[ix + 2] += velocities[ix + 2];
+      }
+      posAttr.needsUpdate = true;
+      syncEndpointsFromArray(arr);
+
+      const fade = Math.max(0, 1 - t * t);
+      material.opacity = 0.92 * fade;
+      material.size = POINT_SIZE * (1.6 + t * 1.4);
+      startMesh.material.opacity = fade;
+      endMesh.material.opacity = fade;
+
+      if (t >= 1) {
+        fireworkPhase = "idle";
+        startMesh.visible = false;
+        endMesh.visible = false;
+      }
+    } else if (fireworkPhase === "idle") {
+      root.rotation.y += CLOUD_SPIN_RAD;
+    }
+
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
   };
@@ -236,4 +384,9 @@ export function mountPathPoints(host, points) {
   ro.observe(host);
   resize();
   tick();
+
+  return {
+    triggerFirework,
+    reset: resetFirework,
+  };
 }
