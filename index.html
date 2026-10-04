@@ -24,13 +24,25 @@
         <div class="col-grid-cell"></div>
         <div class="col-grid-cell"></div>
       </div>
-      <h1 class="title" aria-label="peak prompt">
-        <span class="title-peak">peak</span>
-        <span class="title-prompt">prompt</span>
+      <h1 class="title">
+        <button
+          type="button"
+          class="title-home"
+          id="title-home"
+          aria-label="Torna alla home"
+        >
+          <span class="title-peak">peak</span>
+          <span class="title-prompt">prompt</span>
+        </button>
       </h1>
-      <p class="boot-splash" id="boot-splash" aria-live="polite">
-        10 esperienze<br />quali sono vissute e quali no?
-      </p>
+      <button type="button" class="boot-splash" id="boot-splash" aria-live="polite">
+        <div class="boot-wide-carousel" id="boot-wide-carousel" aria-hidden="true">
+          <div class="boot-wide-stack frame-stack" id="boot-wide-stack"></div>
+        </div>
+        <span class="boot-splash-label">
+          10 esperienze<br />quali sono vissute e quali no?
+        </span>
+      </button>
       <p
         class="real-confirm"
         id="real-confirm"
@@ -39,6 +51,9 @@
         aria-hidden="true"
       ></p>
       <p class="void-404" id="void-404" hidden aria-hidden="true">fake</p>
+      <p class="boot-credit" id="boot-credit" aria-hidden="true">
+        Lagazuoi EXPO Dolomiti / 2026
+      </p>
       <button type="button" class="spin" id="spin" aria-label="Gira la ruota delle storie">
         spin
       </button>
@@ -93,6 +108,12 @@
           <div class="story-media-stack" id="story-media-grid"></div>
         </div>
       </aside>
+      <p
+        class="story-browse-hint"
+        id="story-browse-hint"
+        hidden
+        aria-hidden="true"
+      ></p>
       <!-- GPS track as 3D points — stage center, outside CSS-3D view (clean WebGL) -->
       <div class="path-points" id="path-points" aria-hidden="true"></div>
       <!-- Fixed viewpoint (never animated) -->

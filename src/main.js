@@ -134,6 +134,8 @@ const SPIN_MS_MIN = 3200;
 const SPIN_MS_MAX = 6200;
 const SPIN_TURNS_MIN = 4;
 const SPIN_TURNS_MAX = 8;
+/** Peak spin angular speed scale (1 = previous; 0.8 ≈ 20% slower peak). */
+const SPIN_SPEED_SCALE = 0.8;
 /** Story ids hidden from the two circumferences (and spin deck). */
 const RING_EXCLUDE_IDS = new Set(["83531"]);
 /** “prompt” hangs as a pointer during spin (deg). */
@@ -154,8 +156,7 @@ const CODE_REVEAL_SPIN_DEG = (0.00062 * 180) / Math.PI;
 /** Wheel zoom limits for the code-page stack. */
 const CODE_REVEAL_SCALE_MIN = 0.55;
 const CODE_REVEAL_SCALE_MAX = 4.5;
-/** Intro splash before rings + GPS appear. */
-const BOOT_SPLASH_MS = 2000;
+/** Intro splash copy — dismissed by clicking the green text (unlocks audio). */
 const BOOT_SPLASH_COPY = {
   it: "10 esperienze\nquali sono vissute e quali no?",
   en: "10 experiences\nwhich are lived and which are not?",
@@ -347,7 +348,7 @@ function withQuoteSlides(gallery, quotes) {
     kind: "quote",
     name: `quote-${i + 1}`,
     url: "",
-    text,
+    text: formatQuoteLineBreaks(text),
   }));
   if (!quoteCards.length) return [...gallery];
   if (!gallery.length) return quoteCards;
@@ -359,6 +360,32 @@ function withQuoteSlides(gallery, quotes) {
     result.splice(at, 0, card);
   });
   return result;
+}
+
+/** New line after each sentence-ending period (keeps the “.”). */
+function formatQuoteLineBreaks(text) {
+  return String(text ?? "")
+    .trim()
+    .replace(/\.\s+/g, ".\n");
+}
+
+const PHOTOPOINT_URL = "https://lagazuoi.it/IT/fotopoint.php";
+
+/** @param {string} text */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Full story prose with Photopoint → external link (new window). */
+function renderStoryFullHtml(full) {
+  return escapeHtml(full).replace(
+    /Photopoint/g,
+    `<a class="story-photopoint-link" href="${PHOTOPOINT_URL}" target="_blank" rel="noopener noreferrer">Photopoint</a>`,
+  );
 }
 
 /** @param {number} t */
@@ -406,10 +433,13 @@ function boot() {
   const storyAuthOr = document.querySelector("#story-auth-or");
   const storyMedia = document.querySelector("#story-media");
   const storyMediaGrid = document.querySelector("#story-media-grid");
+  const storyBrowseHint = document.querySelector("#story-browse-hint");
   const viewEl = document.querySelector("#view");
   const titleEl = document.querySelector(".title");
+  const titleHome = document.querySelector("#title-home");
   const titlePrompt = document.querySelector(".title-prompt");
   const bootSplash = document.querySelector("#boot-splash");
+  const bootWideStack = document.querySelector("#boot-wide-stack");
   const realConfirm = document.querySelector("#real-confirm");
   const void404 = document.querySelector("#void-404");
   const lightbox = document.querySelector("#lightbox");
@@ -436,10 +466,17 @@ function boot() {
   let activeStoryReal = false;
   /** @type {ReturnType<typeof loadStories>[number] | null} */
   let activeSettledStory = null;
+  /** Arm once per story entry: first pointer move shows browse hint. */
+  let storyBrowseHintPending = false;
+  /** Hint is visible and should track the cursor. */
+  let storyBrowseHintTracking = false;
+  /** @type {string | null} */
+  let storyBrowseHintStoryId = null;
+  /** @type {number | null} */
+  let storyBrowseHintHideTimer = null;
   let voidCollapsing = false;
   let codeRevealing = false;
   let realConfirming = false;
-  let codeRevealBuilt = false;
   /** @type {{ triggerFirework: () => void, reset: () => void, resize: () => void } | null} */
   let pathPointsApi = null;
   /** @type {number | null} */
@@ -469,10 +506,13 @@ function boot() {
     !(storyAuthOr instanceof HTMLElement) ||
     !(storyMedia instanceof HTMLElement) ||
     !(storyMediaGrid instanceof HTMLElement) ||
+    !(storyBrowseHint instanceof HTMLElement) ||
     !(viewEl instanceof HTMLElement) ||
     !(titleEl instanceof HTMLElement) ||
+    !(titleHome instanceof HTMLButtonElement) ||
     !(titlePrompt instanceof HTMLElement) ||
-    !(bootSplash instanceof HTMLElement) ||
+    !(bootSplash instanceof HTMLButtonElement) ||
+    !(bootWideStack instanceof HTMLElement) ||
     !(realConfirm instanceof HTMLElement) ||
     !(void404 instanceof HTMLElement) ||
     !(codeReveal instanceof HTMLElement) ||
@@ -507,6 +547,84 @@ function boot() {
   const sequences = [];
   /** @type {{ storyId: string, image: HTMLElement, text: HTMLElement }[]} */
   const slots = [];
+
+  /** Boot splash: one “wide” still per story, cycled on hover behind the copy. */
+  const bootWideUrls = stories
+    .map((story) => {
+      const wide = story.gallery.find((g) => {
+        if (g.kind !== "image") return false;
+        const base = g.name.split("/").pop() ?? g.name;
+        return /wide/i.test(base);
+      });
+      return wide?.url ?? null;
+    })
+    .filter((u) => u != null);
+
+  /** @type {HTMLImageElement[]} */
+  const bootWideImgs = [];
+  let bootWideIndex = 0;
+  let bootWideNextAt = 0;
+  let bootWidePreviewing = false;
+
+  bootWideStack.replaceChildren();
+  bootWideUrls.forEach((src, i) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    img.draggable = false;
+    img.loading = "eager";
+    img.setAttribute("aria-hidden", "true");
+    if (i === 0) img.classList.add("is-active");
+    img.addEventListener(
+      "load",
+      () => {
+        if (img.classList.contains("is-active")) {
+          syncStackAspect(bootWideStack, img);
+        }
+      },
+      { once: true },
+    );
+    bootWideStack.appendChild(img);
+    bootWideImgs.push(img);
+  });
+
+  const bootSplashLabel = bootSplash.querySelector(".boot-splash-label");
+  if (bootSplashLabel instanceof HTMLElement && bootWideImgs.length > 0) {
+    const startBootWidePreview = () => {
+      bootWidePreviewing = true;
+      bootSplash.classList.add("is-wide-preview");
+      bootWideNextAt = performance.now();
+    };
+    const stopBootWidePreview = () => {
+      bootWidePreviewing = false;
+      bootSplash.classList.remove("is-wide-preview");
+    };
+    bootSplashLabel.addEventListener("pointerenter", startBootWidePreview);
+    bootSplashLabel.addEventListener("pointerleave", stopBootWidePreview);
+    bootSplash.addEventListener("focusin", startBootWidePreview);
+    bootSplash.addEventListener("focusout", (e) => {
+      if (!bootSplash.contains(/** @type {Node} */ (e.relatedTarget))) {
+        stopBootWidePreview();
+      }
+    });
+  }
+
+  function advanceBootWide(now) {
+    if (
+      !bootWidePreviewing ||
+      bootWideImgs.length < 2 ||
+      now < bootWideNextAt ||
+      !document.body.classList.contains("is-booting")
+    ) {
+      return;
+    }
+    bootWideImgs[bootWideIndex].classList.remove("is-active");
+    bootWideIndex = (bootWideIndex + 1) % bootWideImgs.length;
+    const active = bootWideImgs[bootWideIndex];
+    active.classList.add("is-active");
+    syncStackAspect(bootWideStack, active);
+    bootWideNextAt = now + randBetween(FRAME_MS_MIN, FRAME_MS_MAX);
+  }
 
   ring.forEach((story, i) => {
     const angle = i * itemAngle;
@@ -564,6 +682,8 @@ function boot() {
         "translateY(-50%)",
         "translateY(10pt)",
         `translateY(${textDownShiftVw}vw)`,
+        // Extra drop on large viewports (see --brief-y-extra in CSS)
+        "translateY(var(--brief-y-extra))",
         "rotateX(0deg)",
         `rotateY(${angle}deg)`,
         `translateZ(${RADIUS_TEXT}vw)`,
@@ -663,6 +783,9 @@ function boot() {
 
   function hideStoryPanel() {
     closeLightbox();
+    hideStoryBrowseHint();
+    storyBrowseHintPending = false;
+    storyBrowseHintStoryId = null;
     for (const dispose of activeObjDisposers) dispose();
     activeObjDisposers = [];
     for (const vid of activeGalleryVideos) {
@@ -674,7 +797,7 @@ function boot() {
     storyPanel.classList.remove("is-visible");
     storyPanel.hidden = true;
     storyPanelDatetime.textContent = "";
-    storyPanelBody.textContent = "";
+    storyPanelBody.innerHTML = "";
     storyAuth.classList.remove("is-visible");
     storyAuth.hidden = true;
     storyAuth.setAttribute("aria-hidden", "true");
@@ -694,6 +817,99 @@ function boot() {
     lightboxIndex = 0;
     activeStoryReal = false;
     activeSettledStory = null;
+  }
+
+  function storyBrowseHintCopy() {
+    return storyLang === "en"
+      ? "scroll to browse the memories"
+      : "scorri per sfogliare i ricordi";
+  }
+
+  function hideStoryBrowseHint() {
+    if (storyBrowseHintHideTimer != null) {
+      window.clearTimeout(storyBrowseHintHideTimer);
+      storyBrowseHintHideTimer = null;
+    }
+    storyBrowseHintTracking = false;
+    storyBrowseHint.classList.remove("is-visible", "is-over-media");
+    storyBrowseHint.hidden = true;
+    storyBrowseHint.setAttribute("aria-hidden", "true");
+    storyBrowseHint.textContent = "";
+  }
+
+  /**
+   * @param {number} clientX
+   * @param {number} clientY
+   */
+  function isPointerOverStoryMedia(clientX, clientY) {
+    for (const card of mediaCards) {
+      const opacity = Number.parseFloat(card.style.opacity || "1");
+      if (opacity < 0.2) continue;
+      const r = card.getBoundingClientRect();
+      if (
+        clientX >= r.left &&
+        clientX <= r.right &&
+        clientY >= r.top &&
+        clientY <= r.bottom
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * @param {number} clientX
+   * @param {number} clientY
+   */
+  function placeStoryBrowseHint(clientX, clientY) {
+    storyBrowseHint.style.left = `${clientX}px`;
+    storyBrowseHint.style.top = `${clientY}px`;
+    storyBrowseHint.classList.toggle(
+      "is-over-media",
+      isPointerOverStoryMedia(clientX, clientY),
+    );
+  }
+
+  /**
+   * @param {number} clientX
+   * @param {number} clientY
+   */
+  function showStoryBrowseHintAt(clientX, clientY) {
+    if (mediaCards.length < 2) return;
+    storyBrowseHint.textContent = storyBrowseHintCopy();
+    storyBrowseHint.hidden = false;
+    storyBrowseHint.setAttribute("aria-hidden", "false");
+    placeStoryBrowseHint(clientX, clientY);
+    storyBrowseHintTracking = true;
+    requestAnimationFrame(() => {
+      storyBrowseHint.classList.add("is-visible");
+    });
+    if (storyBrowseHintHideTimer != null) {
+      window.clearTimeout(storyBrowseHintHideTimer);
+    }
+    storyBrowseHintHideTimer = window.setTimeout(() => {
+      hideStoryBrowseHint();
+    }, 4200);
+  }
+
+  /**
+   * @param {PointerEvent} e
+   */
+  function onStoryBrowseHintPointerMove(e) {
+    if (e.pointerType && e.pointerType !== "mouse") return;
+    if (!settled || storyMedia.hidden || mediaCards.length < 2) return;
+    if (voidCollapsing || codeRevealing || realConfirming) return;
+
+    if (storyBrowseHintPending) {
+      storyBrowseHintPending = false;
+      showStoryBrowseHintAt(e.clientX, e.clientY);
+      return;
+    }
+
+    if (storyBrowseHintTracking) {
+      placeStoryBrowseHint(e.clientX, e.clientY);
+    }
   }
 
   function hideVoid404() {
@@ -913,10 +1129,8 @@ function boot() {
     applyCodeRevealTransform();
   }
 
-  /** Build one parallelepiped: upright pages in a single spaced sequence (once). */
+  /** Build one parallelepiped: upright pages in a spaced sequence (shuffled each open). */
   function buildCodeRevealPages() {
-    if (codeRevealBuilt) return;
-    codeRevealBuilt = true;
     codeRevealRig.replaceChildren();
 
     /** @type {{ path: string, text: string }[]} */
@@ -925,8 +1139,15 @@ function boot() {
         path: path.replace(/^\.\.\//, "").replace(/^\.\//, "src/"),
         text: String(text ?? ""),
       }))
-      .filter((p) => p.text.length > 0)
-      .sort((a, b) => a.path.localeCompare(b.path));
+      .filter((p) => p.text.length > 0);
+
+    // Fresh random stack order every time the reveal opens
+    for (let i = pages.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = pages[i];
+      pages[i] = pages[j];
+      pages[j] = tmp;
+    }
 
     const n = pages.length;
     if (!n) return;
@@ -1046,6 +1267,8 @@ function boot() {
     const n = mediaCards.length;
     if (n < 2) return;
     event.preventDefault();
+    hideStoryBrowseHint();
+    storyBrowseHintPending = false;
     const step =
       Math.sign(event.deltaY) *
       Math.min(1.15, Math.abs(event.deltaY) / 100) *
@@ -1072,9 +1295,10 @@ function boot() {
    * }} story
    */
   function showStoryPanel(story) {
+    const isNewEntry = storyBrowseHintStoryId !== story.id;
     activeSettledStory = story;
     storyPanelDatetime.textContent = `${story.datetime}\n#${story.title}`;
-    storyPanelBody.textContent = story.full;
+    storyPanelBody.innerHTML = renderStoryFullHtml(story.full);
     storyPanel.hidden = false;
     activeStoryReal = story.real === true;
     if (storyLang === "en") {
@@ -1112,6 +1336,14 @@ function boot() {
         kind: /** @type {"image" | "video"} */ (item.kind),
       }));
     lightboxIndex = 0;
+
+    if (isNewEntry) {
+      hideStoryBrowseHint();
+      storyBrowseHintStoryId = story.id;
+      storyBrowseHintPending = gallery.length >= 2;
+    } else if (!storyBrowseHint.hidden) {
+      storyBrowseHint.textContent = storyBrowseHintCopy();
+    }
 
     if (gallery.length) {
       // Depth stack replaces the settled B&W carousel face
@@ -1743,7 +1975,9 @@ function boot() {
   }
 
   function syncBootSplashText() {
-    bootSplash.textContent =
+    const label =
+      bootSplash.querySelector(".boot-splash-label") ?? bootSplash;
+    label.textContent =
       storyLang === "en" ? BOOT_SPLASH_COPY.en : BOOT_SPLASH_COPY.it;
   }
 
@@ -1846,13 +2080,28 @@ function boot() {
   langEnBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
   syncLangButtons();
 
-  // Unlock AudioContext on first gesture (Safari requirement).
+  // Unlock AudioContext on first gesture (Safari/Chrome autoplay policy).
+  // Use capture so child stopPropagation (lang, spin, title) cannot skip unlock.
+  let bedGestureUnlocked = false;
   function unlockBed() {
+    if (bedGestureUnlocked) return;
+    bedGestureUnlocked = true;
+    document.removeEventListener("pointerdown", unlockBed, true);
+    document.removeEventListener("keydown", unlockBed, true);
     ensureBedCtx().then(() => {
-      if (!settled && !fortune?.active) playBedHome();
+      if (
+        !settled &&
+        !fortune?.active &&
+        !voidCollapsing &&
+        !codeRevealing &&
+        !realConfirming
+      ) {
+        playBedHome();
+      }
     });
   }
-  document.body.addEventListener("pointerdown", unlockBed, { once: true });
+  document.addEventListener("pointerdown", unlockBed, { capture: true });
+  document.addEventListener("keydown", unlockBed, { capture: true });
 
   function render() {
     setTransform(rig, `rotateY(${state.rotation}deg)`);
@@ -1956,7 +2205,8 @@ function boot() {
     const slotIndex =
       storyIndex + (Math.random() < 0.5 ? 0 : stories.length);
     const extraTurns = Math.floor(randBetween(SPIN_TURNS_MIN, SPIN_TURNS_MAX + 1));
-    const duration = randBetween(SPIN_MS_MIN, SPIN_MS_MAX);
+    // Same travel distance, longer duration → ~20% lower peak speed
+    const duration = randBetween(SPIN_MS_MIN, SPIN_MS_MAX) / SPIN_SPEED_SCALE;
 
     // Item faces camera when parent rotateY + slotAngle ≈ 0
     const landing = -slotIndex * itemAngle;
@@ -2015,6 +2265,7 @@ function boot() {
     }
 
     advanceSequences(now);
+    advanceBootWide(now);
     render();
     updatePromptPointer();
     if (codeRevealing && !codeRevealDragging) {
@@ -2089,6 +2340,7 @@ function boot() {
 
   function goHome() {
     if (fortune?.active) return;
+    if (document.body.classList.contains("is-booting")) return;
     settled = false;
     resetVoidCollapse();
     hideCodeReveal();
@@ -2127,6 +2379,15 @@ function boot() {
     if (!fortune?.active && !codeRevealing) playBedHome();
   });
   homeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    goHome();
+  });
+
+  titleHome.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    if (!fortune?.active && !codeRevealing) playBedHome();
+  });
+  titleHome.addEventListener("click", (e) => {
     e.stopPropagation();
     goHome();
   });
@@ -2197,6 +2458,7 @@ function boot() {
 
   document.body.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointermove", onStoryBrowseHintPointerMove);
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointercancel", onPointerUp);
   window.addEventListener("wheel", onWheel, { passive: false });
@@ -2208,31 +2470,42 @@ function boot() {
     new URLSearchParams(window.location.search).get("story"),
   );
 
-  // Intro: hide rings + GPS for 2s, show centered prompt
+  // Intro: stay on green copy until click — that gesture unlocks bed audio
+  let bootEntered = false;
   syncBootSplashText();
   bootSplash.hidden = false;
   document.body.classList.add("is-booting");
   spinBtn.disabled = true;
+  // Prefetch GPS while waiting (hidden under is-booting)
+  pathPointsApi = mountPathPoints(pathPointsHost, loadGpxPoints()) ?? null;
 
-  window.setTimeout(() => {
-    // Mount GPS only after the splash — avoids a one-frame flash on refresh
-    pathPointsApi = mountPathPoints(pathPointsHost, loadGpxPoints()) ?? null;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.body.classList.remove("is-booting");
-        bootSplash.classList.add("is-leaving");
-        window.setTimeout(() => {
-          bootSplash.hidden = true;
-          bootSplash.classList.remove("is-leaving");
-        }, 550);
-        if (deepStory >= 0) {
-          landOnStory(deepStory, { immediate: true });
-        } else if (!settled && !fortune?.active) {
-          spinBtn.disabled = false;
-        }
-      });
-    });
-  }, BOOT_SPLASH_MS);
+  function enterFromBootSplash(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (bootEntered || !document.body.classList.contains("is-booting")) return;
+    bootEntered = true;
+
+    // Same user gesture → unlock + start home bed
+    unlockBed();
+    playBedHome();
+
+    document.body.classList.remove("is-booting");
+    bootSplash.classList.add("is-leaving");
+    bootSplash.disabled = true;
+    window.setTimeout(() => {
+      bootSplash.hidden = true;
+      bootSplash.classList.remove("is-leaving");
+    }, 550);
+
+    if (deepStory >= 0) {
+      landOnStory(deepStory, { immediate: true });
+    } else if (!settled && !fortune?.active) {
+      spinBtn.disabled = false;
+    }
+  }
+
+  bootSplash.addEventListener("click", enterFromBootSplash);
+  bootSplash.addEventListener("pointerdown", (e) => e.stopPropagation());
 }
 
 boot();

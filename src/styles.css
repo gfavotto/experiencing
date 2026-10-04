@@ -189,6 +189,36 @@ body.is-void-collapse .text-item {
   text-transform: lowercase;
 }
 
+.title-home {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.35em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: color 0.2s ease;
+}
+
+.title-home:hover {
+  color: #47c14d;
+}
+
+.title-home:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
+}
+
 .title-peak,
 .title-prompt {
   text-align: center;
@@ -211,6 +241,8 @@ body.is-void-collapse .text-item {
   margin: 0;
   padding: 1.5rem 8vw;
   box-sizing: border-box;
+  border: 0;
+  background: none;
   pointer-events: none;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 700;
@@ -219,17 +251,95 @@ body.is-void-collapse .text-item {
   letter-spacing: -0.02em;
   color: #47c14d;
   text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.boot-splash-label {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  pointer-events: auto;
+  cursor: pointer;
   white-space: pre-line;
   opacity: 1;
-  transition: opacity 0.55s ease;
+  transition: opacity 0.25s ease;
+}
+
+.boot-wide-carousel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: min(46vw, 58vh);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.boot-wide-stack {
+  width: 100%;
+  box-shadow: none;
+}
+
+.boot-splash.is-wide-preview .boot-wide-carousel {
+  opacity: 1;
+}
+
+.boot-splash.is-wide-preview .boot-splash-label {
+  opacity: 0.95;
+}
+
+.boot-splash:focus-visible {
+  outline: none;
+}
+
+.boot-splash:focus-visible .boot-splash-label {
+  outline: 2px solid #000000;
+  outline-offset: 6px;
 }
 
 .boot-splash[hidden] {
   display: none;
 }
 
-.boot-splash.is-leaving {
+.boot-splash.is-leaving,
+.boot-splash.is-leaving .boot-splash-label {
   opacity: 0;
+  pointer-events: none;
+}
+
+body.is-booting .spin {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-credit {
+  position: absolute;
+  left: 50%;
+  bottom: calc(1.75rem - 5pt);
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+}
+
+body.is-booting .boot-credit {
+  opacity: 1;
+  visibility: visible;
 }
 
 .real-confirm {
@@ -331,6 +441,11 @@ body.is-booting .path-points {
   text-transform: lowercase;
   -webkit-appearance: none;
   appearance: none;
+  transition: filter 0.55s ease, opacity 0.65s ease, color 0.2s ease;
+}
+
+.spin:hover:not(:disabled) {
+  color: #ff69b4;
 }
 
 .spin:disabled {
@@ -434,8 +549,10 @@ body.is-booting .path-points {
   --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 3pt);
   --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
   --title-top-pad: calc(1.75rem - 5pt);
-  /* Rings + GPS + story media: lifted toward “peak prompt” */
-  --ring-lift: 0;
+  /* Rings + GPS + story media: lifted toward “peak prompt” (negative = up) */
+  --ring-lift: -4vh;
+  /* Brief ring: extra downward nudge on large screens (0 by default) */
+  --brief-y-extra: 0%;
   --col-count: 5;
   --col-gap: 15px;
   --col-pad-left: 5px;
@@ -443,6 +560,13 @@ body.is-booting .path-points {
     (100% - var(--col-pad-left) - (var(--col-count) - 1) * var(--col-gap)) /
       var(--col-count)
   );
+}
+
+/* Longer viewport side > 1700px → drop brief texts by 10% of their cell height */
+@media (min-width: 1701px), (min-height: 1701px) {
+  :root {
+    --brief-y-extra: 10%;
+  }
 }
 
 /* Full story: cols 1–2, 60% page height; fills col 1 then spills to col 2 */
@@ -508,6 +632,17 @@ body.is-booting .path-points {
   columns: 2;
   column-gap: 15px;
   column-fill: auto;
+}
+
+.story-photopoint-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+}
+
+.story-photopoint-link:hover {
+  text-decoration: none;
 }
 
 /* Replaces #spin once a story is open: “real or fake?” */
@@ -703,8 +838,43 @@ body.is-booting .path-points {
   letter-spacing: 0.02em;
   text-align: left;
   text-transform: uppercase;
+  white-space: pre-line;
   color: #000000;
   quotes: none;
+}
+
+.story-browse-hint {
+  position: fixed;
+  z-index: 12;
+  margin: 0;
+  padding: 0;
+  max-width: 14rem;
+  pointer-events: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc(clamp(0.7rem, 1.1vw, 0.85rem));
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  color: #000000;
+  text-transform: lowercase;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(12px, 14px);
+  transition:
+    opacity 0.35s ease,
+    color 0.15s ease;
+}
+
+.story-browse-hint.is-over-media {
+  color: #e8ff00;
+}
+
+.story-browse-hint.is-visible {
+  opacity: 0.85;
+}
+
+.story-browse-hint[hidden] {
+  display: none !important;
 }
 
 .story-obj {
@@ -919,6 +1089,11 @@ body.is-booting .path-points {
   opacity: 1;
 }
 
+/* Boot hover preview: color stills (override ring grayscale) */
+.boot-wide-stack.frame-stack img {
+  filter: none;
+}
+
 .text-item {
   box-sizing: border-box;
   overflow: hidden;
@@ -1061,8 +1236,8 @@ body.is-code-reveal .home-ring {
   white-space: pre;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
   user-select: none;
   pointer-events: none;
 }
