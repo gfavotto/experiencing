@@ -19,6 +19,7 @@
         <span class="title-peak">peak</span>
         <span class="title-prompt">prompt</span>
       </h1>
+      <p class="void-404" id="void-404" hidden aria-hidden="true">404</p>
       <button type="button" class="spin" id="spin" aria-label="Gira la ruota delle storie">
         spin
       </button>
@@ -29,24 +30,44 @@
         aria-label="Torna alla home"
         hidden
       ></button>
-      <button
-        type="button"
-        class="mute"
-        id="mute"
-        aria-label="Disattiva audio"
-        aria-pressed="false"
-      >
-        ×
-      </button>
+      <div class="lang-switch" id="lang-switch" role="group" aria-label="Lingua">
+        <button type="button" class="lang-switch-btn" id="lang-it" data-lang="it">
+          ita
+        </button>
+        <span class="lang-switch-sep" aria-hidden="true">/</span>
+        <button type="button" class="lang-switch-btn" id="lang-en" data-lang="en">
+          eng
+        </button>
+      </div>
       <aside class="story-panel" id="story-panel" hidden aria-live="polite">
         <div class="story-panel-inner">
           <p class="story-panel-datetime" id="story-panel-datetime"></p>
           <div class="story-panel-body" id="story-panel-body"></div>
         </div>
       </aside>
-      <aside class="story-media" id="story-media" hidden aria-hidden="true">
-        <div class="story-media-grid" id="story-media-grid"></div>
+      <aside class="story-auth" id="story-auth" hidden aria-hidden="true">
+        <div class="story-auth-choices">
+          <button
+            type="button"
+            class="story-auth-choice"
+            id="story-auth-real"
+            data-guess="real"
+          ></button>
+          <button
+            type="button"
+            class="story-auth-choice"
+            id="story-auth-fake"
+            data-guess="fake"
+          ></button>
+        </div>
       </aside>
+      <aside class="story-media" id="story-media" hidden aria-hidden="true">
+        <div class="story-media-viewport">
+          <div class="story-media-stack" id="story-media-grid"></div>
+        </div>
+      </aside>
+      <!-- GPS track as 3D points — stage center, outside CSS-3D view (clean WebGL) -->
+      <div class="path-points" id="path-points" aria-hidden="true"></div>
       <!-- Fixed viewpoint (never animated) -->
       <div class="view" id="view">
         <!-- Single rotating 3D root: images + texts as direct children (Safari-safe) -->
@@ -57,11 +78,19 @@
           type="button"
           class="lightbox-close"
           id="lightbox-close"
-          aria-label="Chiudi immagine"
+          aria-label="Chiudi"
         >
           ×
         </button>
-        <img class="lightbox-image" id="lightbox-image" alt="" />
+        <img class="lightbox-image" id="lightbox-image" alt="" hidden />
+        <video
+          class="lightbox-video"
+          id="lightbox-video"
+          hidden
+          controls
+          playsinline
+          loop
+        ></video>
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

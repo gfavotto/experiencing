@@ -4,6 +4,15 @@ import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 
 /**
+ * Absolute http(s) URL so MTLLoader (blob base) does not prefix texture paths.
+ * @param {string} url
+ */
+function toAbsoluteUrl(url) {
+  if (/^(https?:|blob:|data:)/i.test(url)) return url;
+  return new URL(url, window.location.href).href;
+}
+
+/**
  * Rewrite MTL texture paths to Vite-resolved absolute URLs.
  * @param {string} mtlText
  * @param {Record<string, string>} textureMap relative path / basename → url
@@ -15,7 +24,11 @@ function rewriteMtlTextures(mtlText, textureMap) {
       const key = String(rawPath).trim().replace(/\\/g, "/");
       const base = key.split("/").pop() ?? key;
       const url = textureMap[key] ?? textureMap[base];
-      return url ? `${prefix}${url}` : full;
+      if (!url) {
+        console.warn("OBJ texture missing from map:", key);
+        return full;
+      }
+      return `${prefix}${toAbsoluteUrl(url)}`;
     },
   );
 }
@@ -40,6 +53,8 @@ async function loadObjModel(objUrl, mtlUrl, textureMap) {
     try {
       const mtlLoader = new MTLLoader();
       const materials = await mtlLoader.loadAsync(blobUrl);
+      // blob MTL base would otherwise prefix Vite /assets URLs — textures are absolute https
+      materials.baseUrl = "";
       materials.preload();
       objLoader.setMaterials(materials);
     } finally {

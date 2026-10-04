@@ -10,6 +10,7 @@ body {
   min-height: 100%;
   background: #e8ff00;
   color: #111111;
+  transition: background-color 1.6s ease;
 }
 
 body {
@@ -20,6 +21,112 @@ body {
 
 body:active {
   cursor: grabbing;
+}
+
+/* Fake story + user picks fake: void collapse */
+body.is-void-collapse {
+  background: #000000;
+  cursor: default;
+}
+
+/* Brief negative flash when returning from void → home.
+   Never filter `.view` — it flattens preserve-3d and causes a size snap. */
+body.is-void-invert-home .title,
+body.is-void-invert-home .spin,
+body.is-void-invert-home .lang-switch,
+body.is-void-invert-home .path-points,
+body.is-void-invert-home .carousel-item,
+body.is-void-invert-home .text-item,
+body.is-void-invert-home .home-ring {
+  filter: invert(1);
+}
+
+.title,
+.spin,
+.lang-switch,
+.path-points,
+.home-ring,
+.carousel-item {
+  transition: filter 0.55s ease;
+}
+
+.void-404 {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.void-404.is-visible {
+  opacity: 1;
+}
+
+.void-404[hidden] {
+  display: none;
+}
+
+.void-404.is-visible[hidden] {
+  display: flex;
+}
+
+/* Invert only at first; fall uses `translate` so existing `transform` stays put (no diagonal).
+   Skip `.view`: filter would flatten preserve-3d (size snap). Rings invert via children. */
+.is-void-fall:not(.view) {
+  filter: invert(1);
+  transition: filter 0.4s ease;
+  will-change: translate, opacity, filter;
+}
+
+body.is-void-collapse .carousel-item,
+body.is-void-collapse .text-item {
+  filter: invert(1);
+  transition: filter 0.4s ease;
+}
+
+.view.is-void-fall {
+  will-change: translate, opacity;
+}
+
+.is-void-fall.is-void-falling:not(.path-points) {
+  translate: 0 120vh;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    translate 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19),
+    opacity 1.35s ease;
+}
+
+/* GPS cloud: rushes toward the camera (grows) and exits last.
+   Keep translate(-50%, -50%) in the same transform so scale stays centered. */
+.path-points.is-void-fall {
+  will-change: transform, opacity, filter;
+  z-index: 40;
+  -webkit-transform-origin: center center;
+  transform-origin: center center;
+}
+
+.path-points.is-void-fall.is-void-rushing {
+  -webkit-transform: translate(-50%, -50%) scale(14);
+  transform: translate(-50%, -50%) scale(14);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 1.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+    -webkit-transform 1.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 1.5s ease;
 }
 
 /*
@@ -86,7 +193,7 @@ body:active {
   position: absolute;
   left: 50%;
   bottom: calc(1.75rem - 5pt);
-  z-index: 2;
+  z-index: 5;
   margin: 0;
   padding: 0;
   border: 0;
@@ -119,7 +226,7 @@ body:active {
   position: absolute;
   left: calc(1.75rem - 5pt);
   bottom: calc(1.75rem - 5pt);
-  z-index: 2;
+  z-index: 5;
   width: 3.4rem;
   height: 0.95rem;
   padding: 0;
@@ -140,32 +247,63 @@ body:active {
   outline-offset: 3px;
 }
 
-.mute {
+.lang-switch {
   position: absolute;
   right: calc(1.75rem - 5pt);
   bottom: calc(1.75rem - 5pt);
-  z-index: 3;
+  z-index: 5;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3em;
+  pointer-events: auto;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-transform: lowercase;
+}
+
+.lang-switch-sep {
+  opacity: 1;
+  user-select: none;
+}
+
+.lang-switch-btn {
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
-  font-family: Helvetica, Arial, sans-serif;
-  font-weight: 400;
-  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.42);
-  line-height: 1;
-  color: #000000;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  opacity: 0.35;
   -webkit-appearance: none;
   appearance: none;
 }
 
-.mute.is-muted {
-  opacity: 0.4;
+.lang-switch-btn.is-active {
+  opacity: 1;
 }
 
-.mute:focus-visible {
+.lang-switch-btn:focus-visible {
   outline: 2px solid #000000;
   outline-offset: 4px;
+}
+
+.lang-switch.is-void-fall.is-void-falling {
+  -webkit-transform: translateY(120vh);
+  transform: translateY(120vh);
+  translate: none;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19),
+    -webkit-transform 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19),
+    opacity 1.35s ease;
 }
 
 :root {
@@ -189,7 +327,7 @@ body:active {
   position: absolute;
   top: calc(var(--title-top-pad) + var(--title-size) + 42pt);
   left: var(--col-pad-left);
-  z-index: 2;
+  z-index: 6;
   display: flex;
   align-items: flex-start;
   /* 2 of 5 columns + the gutter between them */
@@ -240,6 +378,7 @@ body:active {
   min-height: 0;
   margin: 0;
   font: inherit;
+  text-align: justify;
   white-space: pre-wrap;
   overflow: hidden;
   /* Fill first column completely, then continue in the second */
@@ -248,18 +387,78 @@ body:active {
   column-fill: auto;
 }
 
-/* All story stills: last 2 of 5 columns, full height; behind peak prompt */
+/* Opposite the extended story: real/fake label, vertically centered */
+.story-auth {
+  position: absolute;
+  top: calc(var(--title-top-pad) + var(--title-size) + 42pt);
+  right: var(--col-pad-left);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: calc(var(--col-track) * 2 + var(--col-gap));
+  height: 60%;
+  box-sizing: border-box;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--settle-fade-ms, 1s) ease;
+}
+
+.story-auth.is-visible {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.story-auth[hidden] {
+  display: none;
+}
+
+.story-auth.is-visible[hidden] {
+  display: flex;
+}
+
+.story-auth-choices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  pointer-events: auto;
+}
+
+.story-auth-choice {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--story-full-size);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: right;
+  color: #000000;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.story-auth-choice:hover,
+.story-auth-choice:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.story-auth-choice:disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 1;
+}
+
+/* Story media: centered depth stack (same locus as B&W carousel face) */
 .story-media {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(
-    var(--col-pad-left) + var(--col-track) * 3 + var(--col-gap) * 3
-  );
-  z-index: 1;
-  width: calc(var(--col-track) * 2 + var(--col-gap));
-  box-sizing: border-box;
-  padding: 0 0 calc(1.75rem - 5pt + 2.4rem);
+  inset: 0;
+  z-index: 3;
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--settle-fade-ms, 1s) ease;
@@ -277,57 +476,95 @@ body:active {
   display: block;
 }
 
-.story-media-grid {
-  box-sizing: border-box;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-content: flex-start;
-  align-items: flex-start;
-  gap: 2px;
+.story-media-viewport {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(52vw, 68vh);
+  height: min(52vw, 68vh);
+  transform: translate(-50%, -50%) translateY(calc(-5vh + 5pt));
+  -webkit-perspective: 90vw;
+  perspective: 90vw;
+  -webkit-perspective-origin: 50% 50%;
+  perspective-origin: 50% 50%;
   pointer-events: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
-.story-media-grid button {
-  display: block;
-  flex: 0 0 auto;
-  width: auto;
+.story-media-stack {
+  position: absolute;
+  inset: 0;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.story-media-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(46vw, 58vh);
+  max-height: min(46vw, 58vh);
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
+  -webkit-transform-style: flat;
+  transform-style: flat;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  pointer-events: auto;
   cursor: zoom-in;
   -webkit-appearance: none;
   appearance: none;
+  will-change: transform, opacity;
 }
 
-.story-media-grid button:focus-visible {
+.story-media-card:focus-visible {
   outline: 2px solid #000000;
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
-.story-media-grid img,
-.story-media-grid video {
+.story-media-card img,
+.story-media-card video {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
-  max-width: none;
+  max-height: min(46vw, 58vh);
   object-fit: contain;
   pointer-events: none;
 }
 
 .story-media-obj {
-  flex: 0 0 auto;
-  width: calc(50% - 1px);
-  aspect-ratio: 1;
-  min-width: 120px;
-  max-width: 100%;
+  width: min(46vw, 58vh);
+  height: min(46vw, 58vh);
+  max-height: min(46vw, 58vh);
   pointer-events: auto;
+  cursor: grab;
+}
+
+.story-media-quote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  cursor: default;
+  pointer-events: none;
+}
+
+.story-media-quote-text {
+  margin: 0;
+  max-width: 18em;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: calc(var(--story-full-size) * 1.05);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+  color: #000000;
+  quotes: none;
 }
 
 .story-obj {
@@ -379,14 +616,23 @@ body:active {
   display: none;
 }
 
-.lightbox-image {
+.lightbox-image,
+.lightbox-video {
   max-width: min(92vw, 1100px);
   max-height: min(88vh, 88svh);
   width: auto;
   height: auto;
   object-fit: contain;
   box-shadow: none;
+}
+
+.lightbox-image {
   pointer-events: none;
+}
+
+.lightbox-video {
+  pointer-events: auto;
+  background: #000000;
 }
 
 .lightbox-close {
@@ -425,6 +671,42 @@ body:active {
   transform-origin: center center;
 }
 
+/* GPS points only — fixed at the center of the two rings */
+.path-points {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: min(56vw, 84vh);
+  height: min(56vw, 84vh);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.path-points-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.path-points-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.path-points-ele {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 7pt;
+  font-weight: 400;
+  line-height: 1;
+  color: #000000;
+  white-space: nowrap;
+  user-select: none;
+  z-index: 1;
+}
+
 /* Only rotateY is updated in JS — direct parent of all ring faces */
 .rig {
   position: absolute;
@@ -450,7 +732,9 @@ body:active {
 
 .text-item {
   opacity: 1;
-  transition: opacity var(--settle-fade-ms, 1s) ease;
+  transition:
+    opacity var(--settle-fade-ms, 1s) ease,
+    filter 0.55s ease;
 }
 
 .text-item.is-fading-out {
@@ -508,6 +792,6 @@ body:active {
 }
 
 .text-item-head {
-  margin-bottom: calc(1.35em * 4);
+  margin-bottom: calc(1.35em * 3);
   white-space: pre-line;
 }

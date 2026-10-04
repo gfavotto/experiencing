@@ -1,6 +1,7 @@
 import "./styles.css";
 import { STORY_COPY } from "./stories-data.js";
 import { mountObjViewer } from "./objViewer.js";
+import { loadGpxPoints, mountPathPoints } from "./pathPoints.js";
 import bedUrl from "../assets/media/audio/home-bed.mp3?url";
 
 /**
@@ -81,7 +82,7 @@ function mtlUrlForObj(objPath, modules) {
   return null;
 }
 
-const RADIUS = 35; // vw
+const RADIUS = 33.25; // vw (5% under previous 35)
 const RADIUS_TEXT = RADIUS * 1.1; // outer circumference
 const SIZE_FACTOR = 6.17;
 const AUTO_INCREMENT = 0.08;
@@ -105,8 +106,9 @@ const BED_STOP_DELAY_MS = 1000;
  *   gallery: {
  *     url: string,
  *     name: string,
- *     kind: "image" | "video" | "obj",
+ *     kind: "image" | "video" | "obj" | "quote",
  *     path: string,
+ *     text?: string,
  *     mtlUrl?: string | null,
  *     textureMap?: Record<string, string>,
  *   }[],
@@ -114,6 +116,8 @@ const BED_STOP_DELAY_MS = 1000;
  *   datetime: string,
  *   brief: string,
  *   full: string,
+ *   quotes: string[],
+ *   real: boolean,
  * }[]}
  */
 function loadStories() {
@@ -141,6 +145,9 @@ function loadStories() {
         datetime: "",
         brief: "",
         full: "",
+        quotes: [],
+        real: false,
+        en: { brief: "", full: "", quotes: [] },
       };
       const sorted = frames.sort((a, b) => a.name.localeCompare(b.name));
       // Gallery: images / videos / OBJ (not MTL or /textures/)
@@ -170,18 +177,41 @@ function loadStories() {
         id === "15513"
           ? shuffleInPlace([...carouselSource])
           : carouselSource;
+      const i18n = {
+        it: {
+          brief: copy.brief,
+          full: copy.full ?? "",
+          quotes: [...(copy.quotes ?? [])],
+        },
+        en: {
+          brief: copy.en?.brief ?? copy.brief,
+          full: copy.en?.full ?? copy.full ?? "",
+          quotes: [...(copy.en?.quotes ?? copy.quotes ?? [])],
+        },
+      };
+      const pack = storyLang === "en" ? i18n.en : i18n.it;
       return {
         id,
         title: copy.title,
         datetime: copy.datetime,
-        brief: copy.brief,
-        full: copy.full ?? "",
+        brief: pack.brief,
+        full: pack.full,
+        quotes: [...pack.quotes],
+        real: copy.real === true,
+        i18n,
         frames: frameList.map((f) => f.url),
         gallery,
       };
     })
     .filter((s) => s.frames.length > 0);
 }
+
+/** UI language for story prose: `?lang=en` or default Italian. */
+let storyLang =
+  new URLSearchParams(window.location.search).get("lang")?.toLowerCase() ===
+  "en"
+    ? "en"
+    : "it";
 
 function randBetween(min, max) {
   return min + Math.random() * (max - min);
@@ -196,6 +226,52 @@ function shuffleInPlace(items) {
     items[j] = tmp;
   }
   return items;
+}
+
+/**
+ * Depth stack order: "wide" media first when present; shuffle the rest.
+ * @template {{ name: string }} T
+ * @param {T[]} gallery
+ * @returns {T[]}
+ */
+function orderGalleryWithWideFirst(gallery) {
+  const items = [...gallery];
+  const wideIdx = items.findIndex((item) => {
+    const base = item.name.split("/").pop() ?? item.name;
+    return /wide/i.test(base);
+  });
+  if (wideIdx < 0) return shuffleInPlace(items);
+  const [wide] = items.splice(wideIdx, 1);
+  shuffleInPlace(items);
+  return [wide, ...items];
+}
+
+/**
+ * Insert diary/chat quotes into the depth stack (never first if media exists).
+ * @template {{ name: string, kind: string }} T
+ * @param {T[]} gallery
+ * @param {string[]} quotes
+ * @returns {(T | { kind: "quote", name: string, url: string, text: string })[]}
+ */
+function withQuoteSlides(gallery, quotes) {
+  const lines = (quotes ?? []).map((t) => String(t).trim()).filter(Boolean);
+  /** @type {{ kind: "quote", name: string, url: string, text: string }[]} */
+  const quoteCards = lines.map((text, i) => ({
+    kind: "quote",
+    name: `quote-${i + 1}`,
+    url: "",
+    text,
+  }));
+  if (!quoteCards.length) return [...gallery];
+  if (!gallery.length) return quoteCards;
+
+  const result = [...gallery];
+  const step = Math.max(1, Math.floor(result.length / (quoteCards.length + 1)));
+  quoteCards.forEach((card, i) => {
+    const at = Math.min(result.length, Math.max(1, step * (i + 1) + i));
+    result.splice(at, 0, card);
+  });
+  return result;
 }
 
 /** @param {number} t */
@@ -228,37 +304,83 @@ function setTransform(el, value) {
 
 function boot() {
   const rig = document.querySelector("#rig");
+  const pathPointsHost = document.querySelector("#path-points");
   const spinBtn = document.querySelector("#spin");
   const homeBtn = document.querySelector("#home-ring");
-  const muteBtn = document.querySelector("#mute");
+  const langSwitch = document.querySelector("#lang-switch");
+  const langItBtn = document.querySelector("#lang-it");
+  const langEnBtn = document.querySelector("#lang-en");
   const storyPanel = document.querySelector("#story-panel");
   const storyPanelDatetime = document.querySelector("#story-panel-datetime");
   const storyPanelBody = document.querySelector("#story-panel-body");
+  const storyAuth = document.querySelector("#story-auth");
+  const storyAuthReal = document.querySelector("#story-auth-real");
+  const storyAuthFake = document.querySelector("#story-auth-fake");
   const storyMedia = document.querySelector("#story-media");
   const storyMediaGrid = document.querySelector("#story-media-grid");
+  const viewEl = document.querySelector("#view");
+  const titleEl = document.querySelector(".title");
+  const void404 = document.querySelector("#void-404");
   const lightbox = document.querySelector("#lightbox");
   const lightboxImage = document.querySelector("#lightbox-image");
+  const lightboxVideo = document.querySelector("#lightbox-video");
   const lightboxClose = document.querySelector("#lightbox-close");
   /** @type {(() => void)[]} */
   let activeObjDisposers = [];
   /** @type {HTMLVideoElement[]} */
   let activeGalleryVideos = [];
+  /** @type {HTMLElement[]} */
+  let mediaCards = [];
+  /** Scroll position along the depth stack (0 = first item in front). */
+  let mediaDepth = 0;
+  let mediaDepthMax = 0;
+  /** Lightbox sequence (images + videos only). */
+  /** @type {{ url: string, kind: "image" | "video" }[]} */
+  let lightboxItems = [];
+  let lightboxIndex = 0;
+  /** Authenticity of the settled story currently on screen. */
+  let activeStoryReal = false;
+  /** @type {ReturnType<typeof loadStories>[number] | null} */
+  let activeSettledStory = null;
+  let voidCollapsing = false;
+  /** @type {number | null} */
+  let voidHoldTimer = null;
+  /** @type {number | null} */
+  let void404Timer = null;
+  /** @type {number | null} */
+  let void404HideTimer = null;
+  /** @type {number | null} */
+  let voidHomeTimer = null;
+  /** @type {number | null} */
+  let voidInvertTimer = null;
   if (
     !(rig instanceof HTMLElement) ||
+    !(pathPointsHost instanceof HTMLElement) ||
     !(spinBtn instanceof HTMLButtonElement) ||
     !(homeBtn instanceof HTMLButtonElement) ||
-    !(muteBtn instanceof HTMLButtonElement) ||
+    !(langSwitch instanceof HTMLElement) ||
+    !(langItBtn instanceof HTMLButtonElement) ||
+    !(langEnBtn instanceof HTMLButtonElement) ||
     !(storyPanel instanceof HTMLElement) ||
     !(storyPanelDatetime instanceof HTMLElement) ||
     !(storyPanelBody instanceof HTMLElement) ||
+    !(storyAuth instanceof HTMLElement) ||
+    !(storyAuthReal instanceof HTMLButtonElement) ||
+    !(storyAuthFake instanceof HTMLButtonElement) ||
     !(storyMedia instanceof HTMLElement) ||
     !(storyMediaGrid instanceof HTMLElement) ||
+    !(viewEl instanceof HTMLElement) ||
+    !(titleEl instanceof HTMLElement) ||
+    !(void404 instanceof HTMLElement) ||
     !(lightbox instanceof HTMLElement) ||
     !(lightboxImage instanceof HTMLImageElement) ||
+    !(lightboxVideo instanceof HTMLVideoElement) ||
     !(lightboxClose instanceof HTMLButtonElement)
   ) {
     return;
   }
+
+  mountPathPoints(pathPointsHost, loadGpxPoints());
 
   const stories = loadStories();
   if (!stories.length) {
@@ -272,7 +394,7 @@ function boot() {
   const itemWidth = (RADIUS / count) * SIZE_FACTOR;
   const textWidthBase = (RADIUS_TEXT / count) * SIZE_FACTOR * 1.15;
   const textWidth = textWidthBase * 0.5;
-  const textHeight = textWidthBase * 2;
+  const textHeight = textWidthBase * 2.55;
 
   /** @type {{ stack: HTMLElement, imgs: HTMLImageElement[], index: number, nextAt: number, interval: number }[]} */
   const sequences = [];
@@ -381,15 +503,54 @@ function boot() {
 
   function closeLightbox() {
     lightbox.hidden = true;
+    lightboxImage.hidden = true;
     lightboxImage.removeAttribute("src");
+    lightboxVideo.pause();
+    lightboxVideo.removeAttribute("src");
+    lightboxVideo.load();
+    lightboxVideo.hidden = true;
   }
 
   /**
    * @param {string} src
+   * @param {"image" | "video"} [kind]
    */
-  function openLightbox(src) {
-    lightboxImage.src = src;
+  function openLightbox(src, kind = "image") {
+    if (kind === "video") {
+      lightboxImage.hidden = true;
+      lightboxImage.removeAttribute("src");
+      lightboxVideo.hidden = false;
+      lightboxVideo.muted = soundMuted;
+      lightboxVideo.src = src;
+      lightboxVideo.play().catch(() => {});
+    } else {
+      lightboxVideo.pause();
+      lightboxVideo.removeAttribute("src");
+      lightboxVideo.load();
+      lightboxVideo.hidden = true;
+      lightboxImage.hidden = false;
+      lightboxImage.src = src;
+    }
     lightbox.hidden = false;
+  }
+
+  /**
+   * @param {number} index
+   */
+  function showLightboxAt(index) {
+    const n = lightboxItems.length;
+    if (!n) return;
+    lightboxIndex = ((index % n) + n) % n;
+    const item = lightboxItems[lightboxIndex];
+    openLightbox(item.url, item.kind);
+  }
+
+  /**
+   * @param {-1 | 1} dir
+   */
+  function stepLightbox(dir) {
+    if (lightbox.hidden || lightboxItems.length < 2) return;
+    showLightboxAt(lightboxIndex + dir);
   }
 
   function hideStoryPanel() {
@@ -406,25 +567,262 @@ function boot() {
     storyPanel.hidden = true;
     storyPanelDatetime.textContent = "";
     storyPanelBody.textContent = "";
+    storyAuth.classList.remove("is-visible");
+    storyAuth.hidden = true;
+    storyAuth.setAttribute("aria-hidden", "true");
+    storyAuthReal.textContent = "";
+    storyAuthFake.textContent = "";
+    storyAuthReal.disabled = false;
+    storyAuthFake.disabled = false;
     storyMedia.classList.remove("is-visible");
     storyMedia.hidden = true;
     storyMediaGrid.replaceChildren();
+    mediaCards = [];
+    mediaDepth = 0;
+    mediaDepthMax = 0;
+    lightboxItems = [];
+    lightboxIndex = 0;
+    activeStoryReal = false;
+    activeSettledStory = null;
+  }
+
+  function hideVoid404() {
+    void404.classList.remove("is-visible");
+    void404.hidden = true;
+    void404.setAttribute("aria-hidden", "true");
+  }
+
+  function showVoid404() {
+    void404.hidden = false;
+    void404.setAttribute("aria-hidden", "false");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        void404.classList.add("is-visible");
+      });
+    });
+  }
+
+  function clearVoidTimers() {
+    if (voidHoldTimer !== null) {
+      window.clearTimeout(voidHoldTimer);
+      voidHoldTimer = null;
+    }
+    if (void404Timer !== null) {
+      window.clearTimeout(void404Timer);
+      void404Timer = null;
+    }
+    if (void404HideTimer !== null) {
+      window.clearTimeout(void404HideTimer);
+      void404HideTimer = null;
+    }
+    if (voidHomeTimer !== null) {
+      window.clearTimeout(voidHomeTimer);
+      voidHomeTimer = null;
+    }
+    if (voidInvertTimer !== null) {
+      window.clearTimeout(voidInvertTimer);
+      voidInvertTimer = null;
+    }
+  }
+
+  function resetVoidCollapse() {
+    clearVoidTimers();
+    hideVoid404();
+    document.body.classList.remove("is-void-collapse", "is-void-invert-home");
+    document
+      .querySelectorAll(".is-void-fall, .is-void-falling, .is-void-rushing")
+      .forEach((el) => {
+        el.classList.remove("is-void-fall", "is-void-falling", "is-void-rushing");
+        if (el instanceof HTMLElement) el.style.transitionDelay = "";
+      });
+    voidCollapsing = false;
+  }
+
+  /** Restore home after void: keep negative look briefly, then normalize. */
+  function goHomeFromVoid() {
+    if (fortune?.active) return;
+    clearVoidTimers();
+    hideVoid404();
+
+    settled = false;
+    hideStoryPanel();
+    setRingVisibility(null);
+    homeBtn.hidden = true;
+    state.targetIncrement = AUTO_INCREMENT;
+    spinBtn.disabled = false;
+    document.body.classList.remove("is-spinning", "is-void-collapse");
+    // Keep invert on before clearing fallers so the negative look never flashes off.
+    document.body.classList.add("is-void-invert-home");
+    // Kill exit transitions so scale/translate snap back with no size jump.
+    document
+      .querySelectorAll(".is-void-fall, .is-void-falling, .is-void-rushing")
+      .forEach((el) => {
+        if (!(el instanceof HTMLElement)) return;
+        el.style.transition = "none";
+        el.style.transitionDelay = "";
+        el.classList.remove("is-void-fall", "is-void-falling", "is-void-rushing");
+        void el.offsetWidth;
+        el.style.transition = "";
+      });
+    playBedHome();
+
+    voidInvertTimer = window.setTimeout(() => {
+      voidInvertTimer = null;
+      document.body.classList.remove("is-void-invert-home");
+      voidCollapsing = false;
+    }, 800);
   }
 
   /**
-   * Gallery thumbs: 50% of intrinsic media size.
-   * @param {HTMLImageElement | HTMLVideoElement} el
+   * @param {HTMLElement} el
    */
-  function sizeGalleryMediaHalf(el) {
-    if (el instanceof HTMLImageElement) {
-      if (!el.naturalWidth || !el.naturalHeight) return;
-      el.style.width = `${Math.max(1, Math.round(el.naturalWidth * 0.5))}px`;
-      el.style.height = `${Math.max(1, Math.round(el.naturalHeight * 0.5))}px`;
+  function isVoidEligible(el) {
+    if (el.hidden) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    if (Number.parseFloat(style.opacity || "1") < 0.05) return false;
+    return true;
+  }
+
+  /**
+   * User marked a fake story as fake: invert + hold, then exits —
+   * most elements fall; GPS rushes toward camera (same phase).
+   */
+  function triggerVoidCollapse() {
+    if (voidCollapsing) return;
+    voidCollapsing = true;
+    closeLightbox();
+    storyAuthReal.disabled = true;
+    storyAuthFake.disabled = true;
+    document.body.classList.add("is-void-collapse");
+
+    /** @type {HTMLElement[]} */
+    const fallers = [
+      titleEl,
+      spinBtn,
+      homeBtn,
+      storyPanel,
+      storyAuth,
+      storyMedia,
+      viewEl,
+    ].filter(isVoidEligible);
+    // Always include language switch (same collapse as spin / chrome)
+    if (!fallers.includes(langSwitch)) fallers.push(langSwitch);
+
+    const gpsEligible = isVoidEligible(pathPointsHost);
+
+    // Phase 1: stay inverted (negative) for 1.5s
+    fallers.forEach((el) => {
+      el.classList.add("is-void-fall");
+    });
+    if (gpsEligible) pathPointsHost.classList.add("is-void-fall");
+
+    voidHoldTimer = window.setTimeout(() => {
+      voidHoldTimer = null;
+      // Phase 2: fallers drop; GPS rushes toward camera — same beat, random stagger
+      /** @type {{ el: HTMLElement, kind: "fall" | "rush" }[]} */
+      const exits = fallers.map((el) => ({ el, kind: /** @type {"fall"} */ ("fall") }));
+      if (gpsEligible) {
+        exits.push({ el: pathPointsHost, kind: "rush" });
+      }
+      shuffleInPlace(exits);
+      exits.forEach((item, i) => {
+        const delayMs = Math.round(i * 110 + Math.random() * 140);
+        item.el.style.transitionDelay = `${delayMs}ms`;
+        window.requestAnimationFrame(() => {
+          item.el.classList.add(
+            item.kind === "rush" ? "is-void-rushing" : "is-void-falling",
+          );
+        });
+      });
+
+      const lastDelay =
+        exits.length > 0 ? (exits.length - 1) * 110 + 140 : 0;
+      // Fall/rush CSS ~1.5s — wait until everything is off-screen before home
+      // Black hold after collapse: ~15% shorter
+      const exitAnimMs = 1600;
+      const homeMs = Math.round((lastDelay + exitAnimMs + 250) * 0.85);
+
+      // 404 briefly, early — then black until exits finish
+      const show404Ms = Math.max(280, Math.round(lastDelay * 0.35));
+      void404Timer = window.setTimeout(() => {
+        void404Timer = null;
+        showVoid404();
+        void404HideTimer = window.setTimeout(() => {
+          void404HideTimer = null;
+          hideVoid404();
+        }, 504);
+      }, show404Ms);
+
+      voidHomeTimer = window.setTimeout(() => {
+        voidHomeTimer = null;
+        goHomeFromVoid();
+      }, homeMs);
+    }, 1500);
+  }
+
+  /**
+   * @param {"real" | "fake"} guess
+   */
+  function onAuthGuess(guess) {
+    if (voidCollapsing || !settled) return;
+    if (guess === "real" && activeStoryReal) {
+      // Real story marked real — no effect for now
       return;
     }
-    if (!el.videoWidth || !el.videoHeight) return;
-    el.style.width = `${Math.max(1, Math.round(el.videoWidth * 0.5))}px`;
-    el.style.height = `${Math.max(1, Math.round(el.videoHeight * 0.5))}px`;
+    if (guess === "fake" && !activeStoryReal) {
+      triggerVoidCollapse();
+    }
+  }
+
+  /**
+   * Shortest signed offset on a loop of length `n`.
+   * @param {number} i
+   * @param {number} depth
+   * @param {number} n
+   */
+  function wrappedCardOffset(i, depth, n) {
+    let o = i - depth;
+    o -= n * Math.round(o / n);
+    return o;
+  }
+
+  /** Place gallery cards along a leftward + depth axis from `mediaDepth` (loops). */
+  function layoutMediaDepth() {
+    const n = mediaCards.length;
+    if (!n) return;
+    const STEP_X = 24.2; // vw to the left between cards (+10%)
+    const STEP_Z = 41.8; // vw into the screen per card (+10%)
+    mediaCards.forEach((card, i) => {
+      const o = n === 1 ? 0 : wrappedCardOffset(i, mediaDepth, n);
+      setTransform(
+        card,
+        [
+          "translate(-50%, -50%)",
+          `translateX(${-o * STEP_X}vw)`,
+          `translateZ(${-o * STEP_Z}vw)`,
+        ].join(" "),
+      );
+      const fade = Math.max(0, 1 - Math.abs(o) * 0.42);
+      card.style.opacity = String(fade);
+      card.style.zIndex = String(Math.round(200 - Math.abs(o) * 10));
+      card.style.pointerEvents = Math.abs(o) < 0.55 ? "auto" : "none";
+    });
+  }
+
+  /**
+   * @param {WheelEvent} event
+   */
+  function scrollMediaDepth(event) {
+    const n = mediaCards.length;
+    if (n < 2) return;
+    event.preventDefault();
+    const step =
+      Math.sign(event.deltaY) *
+      Math.min(1.15, Math.abs(event.deltaY) / 100) *
+      0.55;
+    mediaDepth = (((mediaDepth + step) % n) + n) % n;
+    layoutMediaDepth();
   }
 
   /**
@@ -435,28 +833,78 @@ function boot() {
    *   gallery?: {
    *     url: string,
    *     name: string,
-   *     kind: "image" | "video" | "obj",
+   *     kind: "image" | "video" | "obj" | "quote",
+   *     text?: string,
    *     mtlUrl?: string | null,
    *     textureMap?: Record<string, string>,
    *   }[],
+   *   quotes?: string[],
+   *   real?: boolean,
    * }} story
    */
   function showStoryPanel(story) {
+    activeSettledStory = story;
     storyPanelDatetime.textContent = `${story.datetime}\n#${story.title}`;
     storyPanelBody.textContent = story.full;
     storyPanel.hidden = false;
+    activeStoryReal = story.real === true;
+    if (storyLang === "en") {
+      storyAuthReal.textContent = "real";
+      storyAuthFake.textContent = "fake";
+    } else {
+      storyAuthReal.textContent = "reale";
+      storyAuthFake.textContent = "finto";
+    }
+    storyAuthReal.disabled = false;
+    storyAuthFake.disabled = false;
+    storyAuth.hidden = false;
+    storyAuth.setAttribute("aria-hidden", "false");
 
     for (const dispose of activeObjDisposers) dispose();
     activeObjDisposers = [];
     activeGalleryVideos = [];
     storyMediaGrid.replaceChildren();
-    const gallery = shuffleInPlace([...(story.gallery ?? [])]);
+    mediaCards = [];
+    mediaDepth = 0;
+    const gallery = withQuoteSlides(
+      orderGalleryWithWideFirst(story.gallery ?? []),
+      story.quotes ?? [],
+    );
+    mediaDepthMax = Math.max(0, gallery.length - 1);
+    lightboxItems = gallery
+      .filter((item) => item.kind === "image" || item.kind === "video")
+      .map((item) => ({
+        url: item.url,
+        kind: /** @type {"image" | "video"} */ (item.kind),
+      }));
+    lightboxIndex = 0;
+
     if (gallery.length) {
+      // Depth stack replaces the settled B&W carousel face
+      slots.forEach((slot) => {
+        slot.image.classList.add("is-hidden");
+      });
+
       for (const item of gallery) {
+        if (item.kind === "quote") {
+          const card = document.createElement("div");
+          card.className = "story-media-card story-media-quote";
+          card.setAttribute("role", "note");
+          card.setAttribute("aria-label", "Citazione");
+          const quoteEl = document.createElement("blockquote");
+          quoteEl.className = "story-media-quote-text";
+          quoteEl.textContent = item.text ?? "";
+          card.appendChild(quoteEl);
+          storyMediaGrid.appendChild(card);
+          mediaCards.push(card);
+          continue;
+        }
+
         if (item.kind === "obj") {
           const cell = document.createElement("div");
-          cell.className = "story-media-obj";
+          cell.className = "story-media-card story-media-obj";
           storyMediaGrid.appendChild(cell);
+          mediaCards.push(cell);
           const dispose = mountObjViewer(cell, {
             objUrl: item.url,
             mtlUrl: item.mtlUrl ?? null,
@@ -467,11 +915,13 @@ function boot() {
           continue;
         }
 
+        const lightboxAt = lightboxItems.findIndex((entry) => entry.url === item.url);
         const btn = document.createElement("button");
         btn.type = "button";
+        btn.className = "story-media-card";
         btn.setAttribute(
           "aria-label",
-          item.kind === "video" ? "Video della storia" : "Ingrandisci immagine",
+          item.kind === "video" ? "Ingrandisci video" : "Ingrandisci immagine",
         );
         if (item.kind === "video") {
           const vid = document.createElement("video");
@@ -484,17 +934,15 @@ function boot() {
           vid.setAttribute("playsinline", "");
           vid.setAttribute("muted", "");
           vid.preload = "auto";
-          vid.addEventListener("loadedmetadata", () => sizeGalleryMediaHalf(vid));
           const tryPlay = () => {
             vid.play().catch(() => {});
           };
           vid.addEventListener("canplay", tryPlay);
           btn.appendChild(vid);
           activeGalleryVideos.push(vid);
-          // no lightbox — keep looping inline
           btn.addEventListener("click", (event) => {
             event.stopPropagation();
-            if (vid.paused) tryPlay();
+            showLightboxAt(lightboxAt);
           });
           tryPlay();
         } else {
@@ -503,19 +951,21 @@ function boot() {
           img.alt = "";
           img.loading = "lazy";
           img.draggable = false;
-          if (img.complete) sizeGalleryMediaHalf(img);
-          else img.addEventListener("load", () => sizeGalleryMediaHalf(img));
           btn.appendChild(img);
           btn.addEventListener("click", (event) => {
             event.stopPropagation();
-            openLightbox(item.url);
+            showLightboxAt(lightboxAt);
           });
         }
         storyMediaGrid.appendChild(btn);
+        mediaCards.push(btn);
       }
+      layoutMediaDepth();
       storyMedia.hidden = false;
+      storyMedia.setAttribute("aria-hidden", "false");
     } else {
       storyMedia.hidden = true;
+      storyMedia.setAttribute("aria-hidden", "true");
     }
 
     // Next frame so opacity transition runs
@@ -523,6 +973,7 @@ function boot() {
       requestAnimationFrame(() => {
         if (!settled) return;
         storyPanel.classList.add("is-visible");
+        storyAuth.classList.add("is-visible");
         if (gallery.length) storyMedia.classList.add("is-visible");
         for (const vid of activeGalleryVideos) {
           vid.play().catch(() => {});
@@ -535,11 +986,27 @@ function boot() {
     event.stopPropagation();
     closeLightbox();
   });
+  lightboxVideo.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
   lightbox.addEventListener("click", () => {
     closeLightbox();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !lightbox.hidden) closeLightbox();
+    if (lightbox.hidden) return;
+    if (event.key === "Escape") {
+      closeLightbox();
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      stepLightbox(1);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      stepLightbox(-1);
+    }
   });
 
   /** Keep winner image; fade outer text with the bed dissolve. */
@@ -585,6 +1052,31 @@ function boot() {
   let fortune = null;
   /** After a fortune stop, keep the wheel still until the next spin. */
   let settled = false;
+  /** Story indices for spin outcomes — reshuffled when empty (no repeats until cycle ends). */
+  let fortuneDeck = /** @type {number[]} */ ([]);
+  /** Last landed story index in `stories` — avoid back-to-back across reshuffle. */
+  let lastFortuneStory = -1;
+
+  /** Draw next fortune story index with a shuffled deck (more even outcomes). */
+  function drawFortuneStoryIndex() {
+    if (fortuneDeck.length === 0) {
+      fortuneDeck = shuffleInPlace(
+        Array.from({ length: stories.length }, (_, i) => i),
+      );
+      if (
+        fortuneDeck.length > 1 &&
+        fortuneDeck[fortuneDeck.length - 1] === lastFortuneStory
+      ) {
+        const swapWith = Math.floor(Math.random() * (fortuneDeck.length - 1));
+        const tmp = fortuneDeck[fortuneDeck.length - 1];
+        fortuneDeck[fortuneDeck.length - 1] = fortuneDeck[swapWith];
+        fortuneDeck[swapWith] = tmp;
+      }
+    }
+    const storyIndex = /** @type {number} */ (fortuneDeck.pop());
+    lastFortuneStory = storyIndex;
+    return storyIndex;
+  }
 
   let dragging = false;
   let lastX = 0;
@@ -782,31 +1274,59 @@ function boot() {
     }, BED_STOP_DELAY_MS + 40);
   }
 
-  function setSoundMuted(muted) {
-    soundMuted = muted;
-    muteBtn.classList.toggle("is-muted", muted);
-    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
-    muteBtn.setAttribute(
-      "aria-label",
-      muted ? "Attiva audio" : "Disattiva audio",
-    );
-    if (muted) {
-      clearBedStopTimer();
-      bedEpoch += 1;
-      stopBedSource();
-      return;
-    }
-    if (fortune?.active) {
-      startBedSpin();
-      return;
-    }
-    if (!settled) playBedHome();
+  function syncLangButtons() {
+    langItBtn.classList.toggle("is-active", storyLang === "it");
+    langEnBtn.classList.toggle("is-active", storyLang === "en");
+    langItBtn.setAttribute("aria-pressed", storyLang === "it" ? "true" : "false");
+    langEnBtn.setAttribute("aria-pressed", storyLang === "en" ? "true" : "false");
+    document.documentElement.lang = storyLang === "en" ? "en" : "it";
   }
 
-  muteBtn.addEventListener("click", (event) => {
+  /**
+   * Apply current `storyLang` to story objects + visible UI.
+   */
+  function applyStoryLocale() {
+    for (const story of stories) {
+      const pack = storyLang === "en" ? story.i18n.en : story.i18n.it;
+      story.brief = pack.brief;
+      story.full = pack.full;
+      story.quotes = [...pack.quotes];
+    }
+    slots.forEach((slot, i) => {
+      const briefEl = slot.text.querySelector(".text-item-brief");
+      if (briefEl) briefEl.textContent = ring[i].brief;
+    });
+    if (settled && activeSettledStory) {
+      showStoryPanel(activeSettledStory);
+    }
+    syncLangButtons();
+  }
+
+  /**
+   * @param {"it" | "en"} lang
+   */
+  function setStoryLang(lang) {
+    if (lang !== "it" && lang !== "en") return;
+    if (lang === storyLang) return;
+    storyLang = lang;
+    const url = new URL(window.location.href);
+    if (lang === "en") url.searchParams.set("lang", "en");
+    else url.searchParams.delete("lang");
+    window.history.replaceState({}, "", url);
+    applyStoryLocale();
+  }
+
+  langItBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    setSoundMuted(!soundMuted);
+    setStoryLang("it");
   });
+  langEnBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setStoryLang("en");
+  });
+  langItBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  langEnBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  syncLangButtons();
 
   // Unlock AudioContext on first gesture (Safari requirement).
   function unlockBed() {
@@ -834,11 +1354,12 @@ function boot() {
   }
 
   function startFortuneSpin() {
-    if (fortune?.active) return;
+    if (fortune?.active || voidCollapsing) return;
 
     dragging = false;
     settled = false;
     homeBtn.hidden = true;
+    resetVoidCollapse();
     hideStoryPanel();
     setRingVisibility(null);
     state.increment = 0;
@@ -846,9 +1367,10 @@ function boot() {
     state.dragDelta = 0;
     state.wheel = 0;
 
-    const storyIndex = Math.floor(Math.random() * stories.length);
-    // Prefer the front copy of the duplicated ring
-    const slotIndex = storyIndex;
+    const storyIndex = drawFortuneStoryIndex();
+    // Either copy of the duplicated ring — same story, different travel distance
+    const slotIndex =
+      storyIndex + (Math.random() < 0.5 ? 0 : stories.length);
     const extraTurns = Math.floor(randBetween(SPIN_TURNS_MIN, SPIN_TURNS_MAX + 1));
     const duration = randBetween(SPIN_MS_MIN, SPIN_MS_MAX);
 
@@ -908,8 +1430,18 @@ function boot() {
   }
 
   function onPointerDown(e) {
-    if (fortune?.active) return;
+    if (fortune?.active || voidCollapsing) return;
     if (e.target instanceof Element && e.target.closest("#spin")) return;
+    if (
+      e.target instanceof Node &&
+      (storyMedia.contains(e.target) ||
+        storyPanel.contains(e.target) ||
+        storyAuth.contains(e.target) ||
+        langSwitch.contains(e.target) ||
+        lightbox.contains(e.target))
+    ) {
+      return;
+    }
     dragging = true;
     lastX = e.clientX;
     state.targetIncrement = 0;
@@ -931,14 +1463,17 @@ function boot() {
   }
 
   function onWheel(e) {
-    const target = e.target;
+    if (voidCollapsing) {
+      e.preventDefault();
+      return;
+    }
+    if (lightbox.contains(/** @type {Node} */ (e.target))) return;
     if (
-      target instanceof Node &&
-      (storyMedia.contains(target) ||
-        lightbox.contains(target) ||
-        storyPanel.contains(target))
+      settled &&
+      storyMedia.classList.contains("is-visible") &&
+      mediaDepthMax > 0
     ) {
-      // Let gallery / text / lightbox scroll natively
+      scrollMediaDepth(e);
       return;
     }
     if (fortune?.active) {
@@ -953,6 +1488,7 @@ function boot() {
   function goHome() {
     if (fortune?.active) return;
     settled = false;
+    resetVoidCollapse();
     hideStoryPanel();
     setRingVisibility(null);
     homeBtn.hidden = true;
@@ -961,6 +1497,17 @@ function boot() {
     document.body.classList.remove("is-spinning");
     playBedHome();
   }
+
+  storyAuthReal.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onAuthGuess("real");
+  });
+  storyAuthFake.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onAuthGuess("fake");
+  });
+  storyAuthReal.addEventListener("pointerdown", (e) => e.stopPropagation());
+  storyAuthFake.addEventListener("pointerdown", (e) => e.stopPropagation());
 
   spinBtn.addEventListener("click", (e) => {
     e.stopPropagation();
