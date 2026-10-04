@@ -435,7 +435,7 @@ body.is-booting .path-points {
   --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
   --title-top-pad: calc(1.75rem - 5pt);
   /* Rings + GPS + story media: lifted toward “peak prompt” */
-  --ring-lift: calc(-3vh + 5pt);
+  --ring-lift: 0;
   --col-count: 5;
   --col-gap: 15px;
   --col-pad-left: 5px;
