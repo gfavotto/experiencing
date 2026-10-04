@@ -3,3 +3,10 @@ dist
 .DS_Store
 *.local
 .vite
+.venv
+
+# Local-only / unused media (not loaded by the site)
+assets/media/references/
+assets/media/carosello giulio altre/
+assets/media/IMG_3377.MOV
+assets/media/maps-lagazuoi/

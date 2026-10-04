@@ -2,7 +2,9 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  assetsInclude: ["**/*.obj", "**/*.mtl"],
+  // GitHub Pages project site: https://gfavotto.github.io/experiencing/
+  base: "/experiencing/",
+  assetsInclude: ["**/*.obj", "**/*.mtl", "**/*.glb", "**/*.gltf"],
   build: {
     rollupOptions: {
       input: {

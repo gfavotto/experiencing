@@ -3,6 +3,35 @@ import { STORY_COPY } from "./stories-data.js";
 import { mountObjViewer } from "./objViewer.js";
 import { loadGpxPoints, mountPathPoints } from "./pathPoints.js";
 import bedUrl from "../assets/media/audio/home-bed.mp3?url";
+import bedOverlayAUrl from "../assets/media/audio/Lagazuoi.m4a?url";
+import bedOverlayBUrl from "../assets/media/audio/Sopra Ponte Outo-da Sentiero 10-rifugio Lagazuoi 2.m4a?url";
+
+/** Project sources for the “false real” code wall (dense, not meant to be read). */
+const codeRawModules = {
+  ...import.meta.glob("./**/*.{js,css}", {
+    eager: true,
+    query: "?raw",
+    import: "default",
+  }),
+  ...import.meta.glob("../content/**/*.md", {
+    eager: true,
+    query: "?raw",
+    import: "default",
+  }),
+  ...import.meta.glob("../scripts/**/*.py", {
+    eager: true,
+    query: "?raw",
+    import: "default",
+  }),
+  ...import.meta.glob(
+    "../{index.html,trail.html,vite.config.js,package.json}",
+    {
+      eager: true,
+      query: "?raw",
+      import: "default",
+    },
+  ),
+};
 
 /**
  * Frenzy Image landscape carousel — fixed camera, spinning rings only.
@@ -11,10 +40,10 @@ import bedUrl from "../assets/media/audio/home-bed.mp3?url";
  * #spin: fortune-wheel stop on a random story.
  */
 
-/** All media under each story folder (and subfolders), incl. OBJ (+ MTL for materials). */
+/** All media under each story folder (and subfolders), incl. OBJ/GLB (+ MTL for materials). */
 /** @type {Record<string, string>} */
 const frameModules = import.meta.glob(
-  "../assets/media/[0-9][0-9][0-9][0-9][0-9]/**/*.{jpg,jpeg,png,webp,gif,avif,mp4,webm,mov,obj,mtl}",
+  "../assets/media/[0-9][0-9][0-9][0-9][0-9]/**/*.{jpg,jpeg,png,webp,gif,avif,mp4,webm,mov,obj,mtl,glb,gltf}",
   {
     eager: true,
     import: "default",
@@ -25,6 +54,7 @@ const frameModules = import.meta.glob(
 const CAROUSEL_IMAGE_RE = /\.(jpe?g|png|webp|gif|avif)$/i;
 const VIDEO_RE = /\.(mp4|webm|mov)$/i;
 const OBJ_RE = /\.obj$/i;
+const GLB_RE = /\.gl(b|tf)$/i;
 const MTL_RE = /\.mtl$/i;
 /** Photogrammetry texture packs — gallery/carousel noise, keep for OBJ loading. */
 const TEXTURE_DIR_RE = /(?:^|\/)textures\//i;
@@ -38,14 +68,25 @@ function isTexturePackFile(name) {
 
 /**
  * @param {string} name
- * @returns {"image" | "video" | "obj" | null}
+ * @returns {"image" | "video" | "obj" | "glb" | null}
  */
 function galleryKind(name) {
   if (isTexturePackFile(name)) return null;
+  if (GLB_RE.test(name)) return "glb";
   if (OBJ_RE.test(name)) return "obj";
   if (VIDEO_RE.test(name)) return "video";
   if (CAROUSEL_IMAGE_RE.test(name)) return "image";
   return null;
+}
+
+/**
+ * Drop Phon 2.obj when phon2_test.glb (or similar) is present in the same story.
+ * @param {string} name
+ * @param {string[]} names
+ */
+function isObjReplacedByGlb(name, names) {
+  if (!OBJ_RE.test(name) || !/phon\s*2/i.test(name)) return false;
+  return names.some((n) => GLB_RE.test(n) && /phon\s*2/i.test(n));
 }
 
 /**
@@ -96,8 +137,20 @@ const SPIN_TURNS_MAX = 8;
 /** Peak rate at spin start (Web Audio BufferSource — works better than HTMLAudio on Safari). */
 const BED_RATE_SPIN_MAX = 5;
 const BED_RATE_HOME = 1;
+/** Home bed loop level (+20% vs unity). */
+const BED_GAIN_HOME = 1.2;
 /** Fade-out duration for bed + outer text after settle. */
 const BED_STOP_DELAY_MS = 1000;
+/** Sparse random gaps — overlays appear occasionally, not as a continuous layer. */
+const BED_OVERLAY_GAP_MIN_MS = 18000;
+const BED_OVERLAY_GAP_MAX_MS = 48000;
+/** First cue after home bed starts (still sparse). */
+const BED_OVERLAY_FIRST_MIN_MS = 8000;
+const BED_OVERLAY_FIRST_MAX_MS = 22000;
+/** Quiet under the bed so home-bed stays dominant. */
+const BED_OVERLAY_GAIN = 0.315;
+/** Chance a scheduled cue actually plays (keeps arrivals irregular). */
+const BED_OVERLAY_PLAY_CHANCE = 0.55;
 
 /**
  * @returns {{
@@ -106,7 +159,7 @@ const BED_STOP_DELAY_MS = 1000;
  *   gallery: {
  *     url: string,
  *     name: string,
- *     kind: "image" | "video" | "obj" | "quote",
+ *     kind: "image" | "video" | "obj" | "glb" | "quote",
  *     path: string,
  *     text?: string,
  *     mtlUrl?: string | null,
@@ -150,11 +203,13 @@ function loadStories() {
         en: { brief: "", full: "", quotes: [] },
       };
       const sorted = frames.sort((a, b) => a.name.localeCompare(b.name));
-      // Gallery: images / videos / OBJ (not MTL or /textures/)
+      const allNames = sorted.map((f) => f.name);
+      // Gallery: images / videos / OBJ / GLB (not MTL or /textures/)
       const gallery = sorted
         .map((f) => {
           const kind = galleryKind(f.name);
           if (!kind) return null;
+          if (kind === "obj" && isObjReplacedByGlb(f.name, allNames)) return null;
           if (kind === "obj") {
             return {
               url: f.url,
@@ -325,6 +380,8 @@ function boot() {
   const lightboxImage = document.querySelector("#lightbox-image");
   const lightboxVideo = document.querySelector("#lightbox-video");
   const lightboxClose = document.querySelector("#lightbox-close");
+  const codeReveal = document.querySelector("#code-reveal");
+  const codeRevealRig = document.querySelector("#code-reveal-rig");
   /** @type {(() => void)[]} */
   let activeObjDisposers = [];
   /** @type {HTMLVideoElement[]} */
@@ -343,6 +400,8 @@ function boot() {
   /** @type {ReturnType<typeof loadStories>[number] | null} */
   let activeSettledStory = null;
   let voidCollapsing = false;
+  let codeRevealing = false;
+  let codeRevealBuilt = false;
   /** @type {number | null} */
   let voidHoldTimer = null;
   /** @type {number | null} */
@@ -372,6 +431,8 @@ function boot() {
     !(viewEl instanceof HTMLElement) ||
     !(titleEl instanceof HTMLElement) ||
     !(void404 instanceof HTMLElement) ||
+    !(codeReveal instanceof HTMLElement) ||
+    !(codeRevealRig instanceof HTMLElement) ||
     !(lightbox instanceof HTMLElement) ||
     !(lightboxImage instanceof HTMLImageElement) ||
     !(lightboxVideo instanceof HTMLVideoElement) ||
@@ -394,7 +455,10 @@ function boot() {
   const itemWidth = (RADIUS / count) * SIZE_FACTOR;
   const textWidthBase = (RADIUS_TEXT / count) * SIZE_FACTOR * 1.15;
   const textWidth = textWidthBase * 0.5;
-  const textHeight = textWidthBase * 2.55;
+  // Tall brief cells — grow downward from the prior 2.55× box
+  const textHeightMul = 4.35;
+  const textHeight = textWidthBase * textHeightMul;
+  const textDownShiftVw = textWidthBase * (textHeightMul - 2.55) * 0.5;
 
   /** @type {{ stack: HTMLElement, imgs: HTMLImageElement[], index: number, nextAt: number, interval: number }[]} */
   const sequences = [];
@@ -456,6 +520,7 @@ function boot() {
         "translateX(-50%)",
         "translateY(-50%)",
         "translateY(10pt)",
+        `translateY(${textDownShiftVw}vw)`,
         "rotateX(0deg)",
         `rotateY(${angle}deg)`,
         `translateZ(${RADIUS_TEXT}vw)`,
@@ -761,13 +826,88 @@ function boot() {
     }, 1500);
   }
 
+  function hideCodeReveal() {
+    codeRevealing = false;
+    document.body.classList.remove("is-code-reveal");
+    codeReveal.hidden = true;
+    codeReveal.setAttribute("aria-hidden", "true");
+  }
+
+  /** Build one parallelepiped: vertical pages in a single spaced sequence (once). */
+  function buildCodeRevealPages() {
+    if (codeRevealBuilt) return;
+    codeRevealBuilt = true;
+    codeRevealRig.replaceChildren();
+
+    /** @type {{ path: string, text: string }[]} */
+    const pages = Object.entries(codeRawModules)
+      .map(([path, text]) => ({
+        path: path.replace(/^\.\.\//, "").replace(/^\.\//, "src/"),
+        text: String(text ?? ""),
+      }))
+      .filter((p) => p.text.length > 0)
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    const n = pages.length;
+    if (!n) return;
+
+    // Parallel vertical planes along Z → one rectangular volume with air gaps
+    const gapZ = 3.1; // vw between faces
+    const originZ = ((n - 1) * gapZ) / 2;
+
+    pages.forEach((page, i) => {
+      const z = i * gapZ - originZ;
+
+      const el = document.createElement("pre");
+      el.className = "code-page";
+      el.setAttribute("aria-hidden", "true");
+
+      const name = document.createElement("span");
+      name.className = "code-page-name";
+      name.textContent = page.path;
+
+      const body = document.createElement("code");
+      body.className = "code-page-body";
+      // Cap length — density over readability
+      body.textContent = page.text.slice(0, 12000);
+
+      el.append(name, body);
+      el.style.transform = `translate3d(0, 0, ${z}vw) translate(-50%, -50%)`;
+      el.style.webkitTransform = el.style.transform;
+      codeRevealRig.appendChild(el);
+    });
+  }
+
+  /**
+   * User marked a fake story as real: strip the world, show the source wall.
+   */
+  function triggerCodeReveal() {
+    if (codeRevealing || voidCollapsing) return;
+    codeRevealing = true;
+    closeLightbox();
+    stopBed();
+    storyAuthReal.disabled = true;
+    storyAuthFake.disabled = true;
+    hideStoryPanel();
+    buildCodeRevealPages();
+    document.body.classList.add("is-code-reveal");
+    codeReveal.hidden = false;
+    codeReveal.setAttribute("aria-hidden", "false");
+    homeBtn.hidden = false;
+    spinBtn.disabled = true;
+  }
+
   /**
    * @param {"real" | "fake"} guess
    */
   function onAuthGuess(guess) {
-    if (voidCollapsing || !settled) return;
+    if (voidCollapsing || codeRevealing || !settled) return;
     if (guess === "real" && activeStoryReal) {
       // Real story marked real — no effect for now
+      return;
+    }
+    if (guess === "real" && !activeStoryReal) {
+      triggerCodeReveal();
       return;
     }
     if (guess === "fake" && !activeStoryReal) {
@@ -833,7 +973,7 @@ function boot() {
    *   gallery?: {
    *     url: string,
    *     name: string,
-   *     kind: "image" | "video" | "obj" | "quote",
+   *     kind: "image" | "video" | "obj" | "glb" | "quote",
    *     text?: string,
    *     mtlUrl?: string | null,
    *     textureMap?: Record<string, string>,
@@ -900,13 +1040,14 @@ function boot() {
           continue;
         }
 
-        if (item.kind === "obj") {
+        if (item.kind === "obj" || item.kind === "glb") {
           const cell = document.createElement("div");
           cell.className = "story-media-card story-media-obj";
           storyMediaGrid.appendChild(cell);
           mediaCards.push(cell);
           const dispose = mountObjViewer(cell, {
-            objUrl: item.url,
+            url: item.url,
+            format: item.kind,
             mtlUrl: item.mtlUrl ?? null,
             textureMap: item.textureMap ?? {},
             label: item.name,
@@ -1009,6 +1150,69 @@ function boot() {
     }
   });
 
+  /**
+   * Deep-link / share URL: `?story=92239` (folder id) or `?story=683` (title).
+   * @param {string | null | undefined} storyId
+   */
+  function syncStoryUrl(storyId) {
+    const url = new URL(window.location.href);
+    if (storyId) url.searchParams.set("story", storyId);
+    else url.searchParams.delete("story");
+    window.history.replaceState({}, "", url);
+  }
+
+  /**
+   * @param {string | null} raw
+   * @returns {number} index in `stories`, or -1
+   */
+  function resolveStoryParam(raw) {
+    if (!raw) return -1;
+    const q = raw.trim().toLowerCase().replace(/^#/, "");
+    if (!q) return -1;
+    let idx = stories.findIndex((s) => s.id.toLowerCase() === q);
+    if (idx < 0) {
+      idx = stories.findIndex((s) => s.title.toLowerCase() === q);
+    }
+    return idx;
+  }
+
+  /**
+   * Jump to a story as if the wheel had just landed (no spin).
+   * @param {number} storyIndex index in `stories`
+   * @param {{ immediate?: boolean }} [opts]
+   */
+  function landOnStory(storyIndex, opts = {}) {
+    if (storyIndex < 0 || storyIndex >= stories.length) return;
+    const slotIndex = storyIndex; // first copy on the duplicated ring
+    const story = ring[slotIndex];
+    dragging = false;
+    fortune = null;
+    voidCollapsing = false;
+    codeRevealing = false;
+    resetVoidCollapse();
+    hideCodeReveal();
+    hideStoryPanel();
+    state.rotation = -slotIndex * itemAngle;
+    state.increment = 0;
+    state.targetIncrement = 0;
+    state.dragDelta = 0;
+    state.wheel = 0;
+    settled = true;
+    homeBtn.hidden = false;
+    spinBtn.disabled = false;
+    document.body.classList.remove("is-spinning");
+    syncStoryUrl(story.id);
+    render();
+    if (opts.immediate) {
+      setRingVisibility(slotIndex);
+      const slot = slots[slotIndex];
+      if (slot) slot.text.classList.add("is-hidden");
+      showStoryPanel(story);
+      return;
+    }
+    settleRing(slotIndex);
+  }
+
   /** Keep winner image; fade outer text with the bed dissolve. */
   function settleRing(keepIndex) {
     document.documentElement.style.setProperty(
@@ -1016,6 +1220,7 @@ function boot() {
       `${BED_STOP_DELAY_MS}ms`,
     );
     const story = ring[keepIndex];
+    syncStoryUrl(story.id);
     slots.forEach((slot, i) => {
       const keep = i === keepIndex;
       slot.image.classList.toggle("is-hidden", !keep);
@@ -1090,6 +1295,19 @@ function boot() {
   let bedSource = null;
   /** @type {GainNode | null} */
   let bedGain = null;
+  /** @type {AudioBuffer[]} */
+  let bedOverlayBuffers = [];
+  /** Active one-shots layered on top of the looping bed (may overlap). */
+  /** @type {Set<AudioBufferSourceNode>} */
+  let bedOverlaySources = new Set();
+  /** @type {GainNode | null} */
+  let bedOverlayGain = null;
+  /** Per-overlay independent timers (not a single queue). */
+  /** @type {(ReturnType<typeof setTimeout> | null)[]} */
+  let bedOverlayTimers = [];
+  /** @type {boolean[]} */
+  let bedOverlayPlaying = [];
+  let bedOverlayEnabled = false;
   let bedAllowed = true;
   let soundMuted = false;
   let bedReady = false;
@@ -1108,6 +1326,23 @@ function boot() {
       })
       .catch((err) => {
         console.warn("Bed audio decode failed", err);
+      });
+
+    Promise.all(
+      [bedOverlayAUrl, bedOverlayBUrl].map((url) =>
+        fetch(url)
+          .then((r) => r.arrayBuffer())
+          .then((buf) => bedCtx.decodeAudioData(buf)),
+      ),
+    )
+      .then((decoded) => {
+        bedOverlayBuffers = decoded.filter(Boolean);
+        bedOverlayTimers = bedOverlayBuffers.map(() => null);
+        bedOverlayPlaying = bedOverlayBuffers.map(() => false);
+        if (bedOverlayEnabled) startBedOverlays();
+      })
+      .catch((err) => {
+        console.warn("Bed overlay decode failed", err);
       });
   }
 
@@ -1140,6 +1375,124 @@ function boot() {
     }
   }
 
+  function clearBedOverlayTimers() {
+    bedOverlayTimers.forEach((timer, i) => {
+      if (timer !== null) clearTimeout(timer);
+      bedOverlayTimers[i] = null;
+    });
+  }
+
+  function stopBedOverlays() {
+    bedOverlayEnabled = false;
+    clearBedOverlayTimers();
+    for (const src of bedOverlaySources) {
+      try {
+        src.onended = null;
+        src.stop();
+      } catch {
+        /* already stopped */
+      }
+      try {
+        src.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    bedOverlaySources.clear();
+    bedOverlayPlaying = bedOverlayPlaying.map(() => false);
+  }
+
+  /**
+   * Independent per-track scheduler: next cue is timed from now, not from
+   * clip end, so overlays can layer on the bed (and on each other).
+   * @param {number} index
+   * @param {boolean} [immediate]
+   */
+  function scheduleBedOverlay(index, immediate = false) {
+    if (bedOverlayTimers[index] != null) {
+      clearTimeout(bedOverlayTimers[index]);
+      bedOverlayTimers[index] = null;
+    }
+    if (
+      !bedOverlayEnabled ||
+      !bedCtx ||
+      !bedAllowed ||
+      soundMuted ||
+      settled ||
+      fortune?.active ||
+      !bedOverlayBuffers[index]
+    ) {
+      return;
+    }
+    const delay = immediate
+      ? randBetween(BED_OVERLAY_FIRST_MIN_MS, BED_OVERLAY_FIRST_MAX_MS)
+      : randBetween(BED_OVERLAY_GAP_MIN_MS, BED_OVERLAY_GAP_MAX_MS);
+    bedOverlayTimers[index] = setTimeout(() => {
+      bedOverlayTimers[index] = null;
+      playBedOverlay(index);
+    }, delay);
+  }
+
+  /**
+   * @param {number} index
+   */
+  function playBedOverlay(index) {
+    if (
+      !bedOverlayEnabled ||
+      !bedCtx ||
+      !bedAllowed ||
+      soundMuted ||
+      settled ||
+      fortune?.active ||
+      !bedOverlayBuffers[index]
+    ) {
+      return;
+    }
+    // Don't stack the same clip on itself; still keep its random cue going.
+    if (bedOverlayPlaying[index] || Math.random() > BED_OVERLAY_PLAY_CHANCE) {
+      scheduleBedOverlay(index, false);
+      return;
+    }
+    if (!bedOverlayGain) {
+      bedOverlayGain = bedCtx.createGain();
+      bedOverlayGain.gain.value = BED_OVERLAY_GAIN;
+      bedOverlayGain.connect(bedCtx.destination);
+    }
+    const src = bedCtx.createBufferSource();
+    src.buffer = bedOverlayBuffers[index];
+    src.connect(bedOverlayGain);
+    src.onended = () => {
+      bedOverlaySources.delete(src);
+      bedOverlayPlaying[index] = false;
+    };
+    try {
+      src.start(0);
+      bedOverlaySources.add(src);
+      bedOverlayPlaying[index] = true;
+    } catch (err) {
+      console.warn("Bed overlay play failed", err);
+      bedOverlayPlaying[index] = false;
+    }
+    // Next cue from now — bed keeps looping; other overlays may already be up.
+    scheduleBedOverlay(index, false);
+  }
+
+  function startBedOverlays() {
+    if (soundMuted || settled || fortune?.active) return;
+    if (bedOverlayBuffers.length === 0) {
+      bedOverlayEnabled = true;
+      return;
+    }
+    bedOverlayEnabled = true;
+    if (bedOverlayTimers.length !== bedOverlayBuffers.length) {
+      bedOverlayTimers = bedOverlayBuffers.map(() => null);
+      bedOverlayPlaying = bedOverlayBuffers.map(() => false);
+    }
+    bedOverlayBuffers.forEach((_, index) => {
+      scheduleBedOverlay(index, true);
+    });
+  }
+
   /**
    * @param {number} rate
    */
@@ -1152,9 +1505,9 @@ function boot() {
     }
     try {
       bedGain.gain.cancelScheduledValues(bedCtx.currentTime);
-      bedGain.gain.setValueAtTime(1, bedCtx.currentTime);
+      bedGain.gain.setValueAtTime(BED_GAIN_HOME, bedCtx.currentTime);
     } catch {
-      bedGain.gain.value = 1;
+      bedGain.gain.value = BED_GAIN_HOME;
     }
     const src = bedCtx.createBufferSource();
     src.buffer = bedBuffer;
@@ -1188,11 +1541,13 @@ function boot() {
       if (settled || fortune?.active) return;
       if (!bedReady || !bedBuffer) return;
       startBedSource(BED_RATE_HOME);
+      startBedOverlays();
     });
   }
 
   function startBedSpin() {
     clearBedStopTimer();
+    stopBedOverlays();
     bedAllowed = true;
     if (soundMuted) return;
     const epoch = ++bedEpoch;
@@ -1218,6 +1573,7 @@ function boot() {
 
   function stopBed() {
     clearBedStopTimer();
+    stopBedOverlays();
     bedAllowed = false;
     bedEpoch += 1;
     if (bedCtx && bedGain) {
@@ -1229,7 +1585,7 @@ function boot() {
       }
     }
     stopBedSource();
-    if (bedGain) bedGain.gain.value = 1;
+    if (bedGain) bedGain.gain.value = BED_GAIN_HOME;
   }
 
   /**
@@ -1238,6 +1594,7 @@ function boot() {
    */
   function scheduleStopBedAfterSettle() {
     clearBedStopTimer();
+    stopBedOverlays();
     if (!bedCtx || !bedGain || !bedSource) {
       stopBed();
       return;
@@ -1269,7 +1626,7 @@ function boot() {
         } catch {
           /* ignore */
         }
-        bedGain.gain.value = 1;
+        bedGain.gain.value = BED_GAIN_HOME;
       }
     }, BED_STOP_DELAY_MS + 40);
   }
@@ -1354,12 +1711,13 @@ function boot() {
   }
 
   function startFortuneSpin() {
-    if (fortune?.active || voidCollapsing) return;
+    if (fortune?.active || voidCollapsing || codeRevealing) return;
 
     dragging = false;
     settled = false;
     homeBtn.hidden = true;
     resetVoidCollapse();
+    hideCodeReveal();
     hideStoryPanel();
     setRingVisibility(null);
     state.increment = 0;
@@ -1430,7 +1788,7 @@ function boot() {
   }
 
   function onPointerDown(e) {
-    if (fortune?.active || voidCollapsing) return;
+    if (fortune?.active || voidCollapsing || codeRevealing) return;
     if (e.target instanceof Element && e.target.closest("#spin")) return;
     if (
       e.target instanceof Node &&
@@ -1448,7 +1806,7 @@ function boot() {
   }
 
   function onPointerMove(e) {
-    if (!dragging || fortune?.active) return;
+    if (!dragging || fortune?.active || codeRevealing) return;
     const dx = e.clientX - lastX;
     lastX = e.clientX;
     state.dragDelta += -dx * DRAG_SPEED * 10;
@@ -1463,7 +1821,7 @@ function boot() {
   }
 
   function onWheel(e) {
-    if (voidCollapsing) {
+    if (voidCollapsing || codeRevealing) {
       e.preventDefault();
       return;
     }
@@ -1489,12 +1847,14 @@ function boot() {
     if (fortune?.active) return;
     settled = false;
     resetVoidCollapse();
+    hideCodeReveal();
     hideStoryPanel();
     setRingVisibility(null);
     homeBtn.hidden = true;
     state.targetIncrement = AUTO_INCREMENT;
     spinBtn.disabled = false;
     document.body.classList.remove("is-spinning");
+    syncStoryUrl(null);
     playBedHome();
   }
 
@@ -1518,11 +1878,22 @@ function boot() {
   homeBtn.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
     // Restart bed in the same user gesture (required by Safari/autoplay rules).
-    if (!fortune?.active) playBedHome();
+    if (!fortune?.active && !codeRevealing) playBedHome();
   });
   homeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     goHome();
+  });
+
+  codeReveal.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (codeRevealing) goHome();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && codeRevealing) {
+      e.preventDefault();
+      goHome();
+    }
   });
 
   document.body.addEventListener("pointerdown", onPointerDown);
@@ -1533,6 +1904,13 @@ function boot() {
 
   render();
   requestAnimationFrame(frame);
+
+  const deepStory = resolveStoryParam(
+    new URLSearchParams(window.location.search).get("story"),
+  );
+  if (deepStory >= 0) {
+    landOnStory(deepStory, { immediate: true });
+  }
 }
 
 boot();

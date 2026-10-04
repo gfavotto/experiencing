@@ -1,7 +1,17 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+
+/** Shared Draco decoder for compressed GLBs (phon2_test, etc.). */
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath(`${import.meta.env.BASE_URL}draco/gltf/`);
+dracoLoader.setDecoderConfig({ type: "wasm" });
+
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
 
 /**
  * Absolute http(s) URL so MTLLoader (blob base) does not prefix texture paths.
@@ -66,18 +76,38 @@ async function loadObjModel(objUrl, mtlUrl, textureMap) {
 }
 
 /**
- * Mount an interactive OBJ viewer (drag to rotate). Not for the carousel.
+ * @param {string} url
+ */
+async function loadGlbModel(url) {
+  const gltf = await gltfLoader.loadAsync(url);
+  return gltf.scene;
+}
+
+/**
+ * Mount an interactive 3D viewer (OBJ or GLB). Drag to rotate. Not for the carousel.
  *
  * @param {HTMLElement} host
  * @param {{
- *   objUrl: string,
+ *   url?: string,
+ *   objUrl?: string,
+ *   format?: "obj" | "glb",
  *   mtlUrl?: string | null,
  *   textureMap?: Record<string, string>,
  *   label?: string,
  * }} opts
  */
 export function mountObjViewer(host, opts) {
-  const { objUrl, mtlUrl = null, textureMap = {}, label = "Modello 3D" } = opts;
+  const {
+    format = "obj",
+    mtlUrl = null,
+    textureMap = {},
+    label = "Modello 3D",
+  } = opts;
+  const url = opts.url ?? opts.objUrl;
+  if (!url) {
+    console.warn("3D viewer: missing url", label);
+    return () => {};
+  }
 
   const wrap = document.createElement("div");
   wrap.className = "story-obj";
@@ -170,7 +200,12 @@ export function mountObjViewer(host, opts) {
   resize();
   tick();
 
-  loadObjModel(objUrl, mtlUrl, textureMap)
+  const loadPromise =
+    format === "glb"
+      ? loadGlbModel(url)
+      : loadObjModel(url, mtlUrl, textureMap);
+
+  loadPromise
     .then((object) => {
       if (disposed) return;
       root = object;
@@ -185,6 +220,17 @@ export function mountObjViewer(host, opts) {
             if (!mat) continue;
             mat.side = THREE.DoubleSide;
             if ("map" in mat && mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+            // Self-lit so photogrammetry / dark GLBs read on the yellow stage
+            if ("emissive" in mat) {
+              const base =
+                mat.color?.clone?.() ?? new THREE.Color(0xffffff);
+              mat.emissive.copy(base);
+              mat.emissiveIntensity = format === "glb" ? 0.85 : 0.35;
+              if (mat.map && "emissiveMap" in mat && !mat.emissiveMap) {
+                mat.emissiveMap = mat.map;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       });
@@ -193,7 +239,7 @@ export function mountObjViewer(host, opts) {
       status.remove();
     })
     .catch((err) => {
-      console.warn("OBJ load failed:", label, err);
+      console.warn("3D load failed:", label, err);
       status.textContent = "3D n/d";
     });
 
