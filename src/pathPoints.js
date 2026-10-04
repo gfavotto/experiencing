@@ -144,10 +144,10 @@ function makeEndpoint(position) {
 function randomBurstVelocity(out) {
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
-  const speed = 0.045 + Math.random() * 0.11;
+  const speed = 0.07 + Math.random() * 0.16;
   out.set(
     Math.sin(phi) * Math.cos(theta) * speed,
-    Math.abs(Math.cos(phi)) * speed * 0.85 + 0.04 + Math.random() * 0.05,
+    Math.abs(Math.cos(phi)) * speed * 0.9 + 0.055 + Math.random() * 0.07,
     Math.sin(phi) * Math.sin(theta) * speed,
   );
   return out;
@@ -388,5 +388,6 @@ export function mountPathPoints(host, points) {
   return {
     triggerFirework,
     reset: resetFirework,
+    resize,
   };
 }

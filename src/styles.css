@@ -269,8 +269,36 @@ body.is-void-collapse .text-item {
   display: flex;
 }
 
+/* Real-confirm: dissolve chrome onto the yellow stage; keep caption + GPS + home */
+body.is-real-confirm .title,
+body.is-real-confirm .spin,
+body.is-real-confirm .lang-switch,
+body.is-real-confirm .story-panel,
+body.is-real-confirm .story-auth,
+body.is-real-confirm .story-media,
+body.is-real-confirm .col-grid,
+body.is-real-confirm .carousel-item,
+body.is-real-confirm .text-item,
+body.is-real-confirm .boot-splash {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.95s ease;
+}
+
+/* Avoid opacity on .view (preserve-3d size snap) — hide faces via rules above */
+body.is-real-confirm .view {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Full-viewport stage for the GPS firework (no clipped window) */
 body.is-real-confirm .path-points {
   z-index: 35;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
 }
 
 body.is-booting .carousel-item,

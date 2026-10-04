@@ -440,7 +440,7 @@ function boot() {
   let codeRevealing = false;
   let realConfirming = false;
   let codeRevealBuilt = false;
-  /** @type {{ triggerFirework: () => void, reset: () => void } | null} */
+  /** @type {{ triggerFirework: () => void, reset: () => void, resize: () => void } | null} */
   let pathPointsApi = null;
   /** @type {number | null} */
   let voidHoldTimer = null;
@@ -1766,6 +1766,7 @@ function boot() {
     realConfirm.setAttribute("aria-hidden", "true");
     document.body.classList.remove("is-real-confirm");
     pathPointsApi?.reset();
+    requestAnimationFrame(() => pathPointsApi?.resize());
   }
 
   /**
@@ -1785,10 +1786,13 @@ function boot() {
     realConfirm.setAttribute("aria-hidden", "false");
     document.body.classList.add("is-real-confirm");
     homeBtn.hidden = false;
-    pathPointsApi?.triggerFirework();
+    // Expand GPS host to full viewport, then burst after layout
     requestAnimationFrame(() => {
+      pathPointsApi?.resize();
       requestAnimationFrame(() => {
-        if (realConfirming) realConfirm.classList.add("is-visible");
+        if (!realConfirming) return;
+        pathPointsApi?.triggerFirework();
+        realConfirm.classList.add("is-visible");
       });
     });
   }
