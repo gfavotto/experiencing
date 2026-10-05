@@ -79,6 +79,8 @@ body.is-info-sphere-gone #info-canvas {
 body.is-info-float-visible #info-float-canvas {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
+  cursor: pointer;
   transition: opacity 1.1s ease, visibility 0s linear 0s;
 }
 

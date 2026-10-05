@@ -232,31 +232,69 @@ async function boot() {
   let hintHideTimer = null;
   /** @type {number | null} */
   let copyRevealTimer = null;
-  let sphereGone = false;
+  /** @type {"sphere" | "group"} */
+  let viewMode = "sphere";
+  let viewSwitching = false;
   /** @type {(() => void) | null} */
   let disposeSphere = null;
   /** @type {(() => void) | null} */
   let disposeFloat = null;
 
-  function dismissSphere() {
-    if (sphereGone) return;
-    sphereGone = true;
+  function showGroupPhoto() {
+    if (viewMode === "group" || viewSwitching) return;
+    viewSwitching = true;
+    viewMode = "group";
     hideHint();
     hintPending = false;
     document.body.classList.add("is-info-sphere-gone");
-    document.body.style.cursor = "default";
+    document.body.style.cursor = "pointer";
 
-    // Group photo floats in behind as the sphere fades out
-    disposeFloat = createFloatingPhoto(floatCanvas, groupPhotoUrl);
+    if (!disposeFloat) {
+      disposeFloat = createFloatingPhoto(floatCanvas, groupPhotoUrl);
+    }
     requestAnimationFrame(() => {
       document.body.classList.add("is-info-float-visible");
     });
-
     window.setTimeout(() => {
-      disposeSphere?.();
-      disposeSphere = null;
-    }, 900);
+      viewSwitching = false;
+    }, 500);
   }
+
+  function showSphere() {
+    if (viewMode === "sphere" || viewSwitching) return;
+    viewSwitching = true;
+    viewMode = "sphere";
+    hideHint();
+    document.body.classList.remove("is-info-float-visible");
+    document.body.classList.remove("is-info-sphere-gone");
+    document.body.style.cursor = "";
+    hintPending = true;
+    window.setTimeout(() => {
+      viewSwitching = false;
+    }, 500);
+  }
+
+  function toggleSphereGroup() {
+    if (viewMode === "sphere") showGroupPhoto();
+    else showSphere();
+  }
+
+  /**
+   * Tap on the floating group photo → back to the sphere.
+   * @param {PointerEvent} e
+   */
+  function onFloatPointerUp(e) {
+    if (viewMode !== "group") return;
+    if (e.button != null && e.button !== 0) return;
+    // Ignore taps on chrome / copy links
+    const t = e.target;
+    if (t instanceof Element) {
+      if (t.closest("a, button, .info-copy-link, .lang-switch")) return;
+    }
+    toggleSphereGroup();
+  }
+
+  floatCanvas.addEventListener("pointerup", onFloatPointerUp);
 
   function hideHint() {
     if (hintHideTimer != null) {
@@ -343,7 +381,7 @@ async function boot() {
       }, 1000);
     },
     onTap: () => {
-      dismissSphere();
+      toggleSphereGroup();
     },
   });
 }
