@@ -4,12 +4,14 @@ import { createInfoSphere } from "./info-sphere.js";
 import groupPhotoUrl from "../assets/media/peak prompt - lagazuoi - 2026 - group.jpeg?url";
 
 /**
- * Lazy glob — avoid shipping 1400 eager URL imports in the first module
- * (that delayed CSS/paint and flashed a white page).
+ * Eager URL map — hashed paths are inlined in the info bundle.
+ * Lazy `import()` per photo would fire ~1400 extra JS requests before
+ * any image URL is known (looks like a blank page on slow networks).
  */
-const photopointLoaders = import.meta.glob(
+const photopointUrlModules = import.meta.glob(
   "../assets/media/photopoint/*.{jpg,jpeg,png,webp}",
   {
+    eager: true,
     query: "?url",
     import: "default",
   },
@@ -129,14 +131,11 @@ function withParams(path, params) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-async function resolvePhotopointUrls() {
-  const entries = Object.entries(photopointLoaders).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-  const urls = await Promise.all(
-    entries.map(async ([, load]) => String(await load())),
-  );
-  return urls.filter(Boolean);
+function resolvePhotopointUrls() {
+  return Object.entries(photopointUrlModules)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, url]) => String(url))
+    .filter(Boolean);
 }
 
 async function boot() {
@@ -224,7 +223,7 @@ async function boot() {
     setInfoLang("en");
   });
 
-  const urls = await resolvePhotopointUrls();
+  const urls = resolvePhotopointUrls();
   if (!urls.length) return;
 
   let hintPending = true;
