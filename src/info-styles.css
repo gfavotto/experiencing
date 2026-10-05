@@ -93,17 +93,18 @@ body.is-info-float-visible #info-float-canvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.1em;
+  gap: 0.7em;
   box-sizing: border-box;
   margin: 0;
-  padding: calc(var(--title-top-pad) + var(--title-size) + 1.25rem) 4vw
-    calc(var(--chrome-bottom) + var(--chrome-hit) + 1.25rem);
-  overflow: auto;
+  padding: calc(var(--title-top-pad) + var(--title-size) + 0.6rem) 4vw
+    calc(var(--chrome-bottom) + var(--chrome-hit) + 0.6rem);
+  overflow: hidden;
   pointer-events: none;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 700;
-  font-size: calc(var(--title-size) * 0.81);
-  line-height: 1;
+  /* Fill the copy cell while staying in one viewport */
+  font-size: min(calc(var(--title-size) * 0.55), 3.35vh);
+  line-height: 1.05;
   letter-spacing: -0.02em;
   color: #e8ff00;
   text-align: center;
@@ -126,7 +127,7 @@ body.is-info-float-visible #info-float-canvas {
 .info-copy p {
   margin: 0;
   width: 100%;
-  max-width: 72em;
+  max-width: 68em;
 }
 
 .info-copy-link {
