@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peak Prompt — Info</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #000000;
+      }
+    </style>
+    <link rel="stylesheet" href="/src/info-styles.css" />
+  </head>
+  <body class="is-info">
+    <div class="info-stage" id="info-stage">
+      <canvas id="info-float-canvas" aria-hidden="true"></canvas>
+      <canvas id="info-canvas" aria-hidden="true"></canvas>
+      <div class="info-copy" id="info-copy" hidden aria-hidden="true"></div>
+      <h1 class="title info-title">
+        <a
+          class="title-home info-home"
+          id="info-home"
+          href="./"
+          aria-label="Torna alla home"
+        >
+          <span class="title-peak">peak</span>
+          <span class="title-prompt">prompt</span>
+        </a>
+      </h1>
+      <p
+        class="info-browse-hint"
+        id="info-browse-hint"
+        hidden
+        aria-hidden="true"
+      ></p>
+      <a
+        class="home-ring info-home-ring"
+        id="info-home-ring"
+        href="./?rings=1"
+        aria-label="Torna alle circonferenze"
+      ></a>
+    </div>
+    <script type="module" src="/src/info-main.js"></script>
+  </body>
+</html>

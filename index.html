@@ -40,7 +40,7 @@
           <div class="boot-wide-stack frame-stack" id="boot-wide-stack"></div>
         </div>
         <span class="boot-splash-label">
-          10 esperienze<br />quali sono vissute e quali no?
+          10 esperienze<br />pezzi di vita vissuta o di vita generata?
         </span>
       </button>
       <p
@@ -50,7 +50,9 @@
         aria-live="polite"
         aria-hidden="true"
       ></p>
-      <p class="void-404" id="void-404" hidden aria-hidden="true">fake</p>
+      <p class="void-404" id="void-404" hidden aria-hidden="true">
+        sì, questa esperienza è stata generata
+      </p>
       <p class="boot-credit" id="boot-credit" aria-hidden="true">
         Lagazuoi EXPO Dolomiti / 2026
       </p>
@@ -71,14 +73,14 @@
             id="story-auth-real"
             data-guess="real"
           ></button>
-          <span class="story-auth-or" id="story-auth-or" aria-hidden="true">or</span>
+          <span class="story-auth-or" id="story-auth-or" aria-hidden="true"></span>
           <button
             type="button"
             class="story-auth-choice"
             id="story-auth-fake"
             data-guess="fake"
           ></button>
-          <span class="story-auth-mark" aria-hidden="true">?</span>
+          <span class="story-auth-mark" aria-hidden="true"></span>
         </p>
       </aside>
       <button
@@ -88,14 +90,24 @@
         aria-label="Torna alla home"
         hidden
       ></button>
+      <a
+        class="info-btn"
+        id="info-btn"
+        href="./info.html"
+        aria-label="Informazioni sul progetto"
+      >
+        info
+      </a>
       <div class="lang-switch" id="lang-switch" role="group" aria-label="Lingua">
-        <button type="button" class="lang-switch-btn" id="lang-it" data-lang="it">
-          ita
-        </button>
-        <span class="lang-switch-sep" aria-hidden="true">/</span>
-        <button type="button" class="lang-switch-btn" id="lang-en" data-lang="en">
-          eng
-        </button>
+        <div class="lang-switch-rail">
+          <button type="button" class="lang-switch-btn" id="lang-it" data-lang="it">
+            ita
+          </button>
+          <span class="lang-switch-sep" aria-hidden="true">/</span>
+          <button type="button" class="lang-switch-btn" id="lang-en" data-lang="en">
+            eng
+          </button>
+        </div>
       </div>
       <aside class="story-panel" id="story-panel" hidden aria-live="polite">
         <div class="story-panel-inner">
@@ -150,7 +162,7 @@
         aria-label="Source"
       >
         <p class="code-reveal-caption" id="code-reveal-caption">
-          no, non è un'esperienza realmente vissuta
+          no, questa esperienza è in larga parte generata
         </p>
         <div class="code-reveal-scene">
           <div class="code-reveal-rig" id="code-reveal-rig"></div>

@@ -34,6 +34,7 @@ body.is-void-collapse {
 body.is-void-invert-home .title,
 body.is-void-invert-home .spin,
 body.is-void-invert-home .lang-switch,
+body.is-void-invert-home .info-btn,
 body.is-void-invert-home .path-points,
 body.is-void-invert-home .carousel-item,
 body.is-void-invert-home .text-item,
@@ -44,6 +45,7 @@ body.is-void-invert-home .home-ring {
 .title,
 .spin,
 .lang-switch,
+.info-btn,
 .path-points,
 .home-ring,
 .carousel-item {
@@ -310,7 +312,8 @@ body.is-void-collapse .text-item {
   pointer-events: none;
 }
 
-body.is-booting .spin {
+body.is-booting .spin,
+body.is-booting .info-btn {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -319,15 +322,20 @@ body.is-booting .spin {
 .boot-credit {
   position: absolute;
   left: 50%;
-  bottom: calc(1.75rem - 5pt);
+  bottom: var(--chrome-bottom);
   z-index: 5;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chrome-hit);
   margin: 0;
   padding: 0;
   transform: translateX(-50%);
   pointer-events: none;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 400;
-  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  font-size: var(--chrome-font-size);
   line-height: 1;
   letter-spacing: -0.02em;
   color: #000000;
@@ -383,6 +391,7 @@ body.is-booting .boot-credit {
 body.is-real-confirm .title,
 body.is-real-confirm .spin,
 body.is-real-confirm .lang-switch,
+body.is-real-confirm .info-btn,
 body.is-real-confirm .story-panel,
 body.is-real-confirm .story-auth,
 body.is-real-confirm .story-media,
@@ -423,8 +432,13 @@ body.is-booting .path-points {
 .spin {
   position: absolute;
   left: 50%;
-  bottom: calc(1.75rem - 5pt);
+  bottom: var(--chrome-bottom);
   z-index: 5;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chrome-hit);
   margin: 0;
   padding: 0;
   border: 0;
@@ -433,7 +447,7 @@ body.is-booting .path-points {
   cursor: pointer;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 400;
-  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  font-size: var(--chrome-font-size);
   line-height: 1;
   letter-spacing: -0.02em;
   color: #000000;
@@ -458,11 +472,16 @@ body.is-booting .path-points {
   outline-offset: 4px;
 }
 
+.spin[hidden] {
+  display: none !important;
+}
+
 .home-ring {
   position: absolute;
   left: calc(1.75rem - 5pt);
-  bottom: calc(1.75rem - 5pt);
+  bottom: calc(var(--chrome-bottom) + (var(--chrome-hit) - 0.95rem) / 2);
   z-index: 5;
+  box-sizing: border-box;
   width: 3.4rem;
   height: 0.95rem;
   padding: 0;
@@ -485,13 +504,10 @@ body.is-booting .path-points {
 
 .lang-switch {
   position: absolute;
-  right: calc(1.75rem - 5pt);
-  bottom: calc(1.75rem - 5pt);
+  right: 0.35rem;
+  top: 50%;
   z-index: 5;
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 0.3em;
+  translate: 0 -50%;
   pointer-events: auto;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 400;
@@ -500,6 +516,15 @@ body.is-booting .path-points {
   letter-spacing: -0.02em;
   color: #000000;
   text-transform: lowercase;
+}
+
+.lang-switch-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3em;
+  transform: rotate(90deg);
+  transform-origin: center center;
 }
 
 .lang-switch-sep {
@@ -530,29 +555,58 @@ body.is-booting .path-points {
   outline-offset: 4px;
 }
 
-.lang-switch.is-void-fall.is-void-falling {
-  -webkit-transform: translateY(120vh);
-  transform: translateY(120vh);
-  translate: none;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    transform 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19),
-    -webkit-transform 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19),
-    opacity 1.35s ease;
+.info-btn {
+  position: absolute;
+  right: 2.15rem;
+  bottom: var(--chrome-bottom);
+  z-index: 5;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chrome-hit);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: var(--chrome-font-size);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-decoration: none;
+  text-transform: lowercase;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: filter 0.55s ease, opacity 0.65s ease, color 0.2s ease;
+}
+
+.info-btn:hover {
+  color: #ff69b4;
+}
+
+.info-btn:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
 }
 
 :root {
   /* Outer ring brief (small) */
   --story-type-size: calc(clamp(0.55rem, 0.95vw, 0.78rem) - 1pt);
   /* Full story in page cols 1–2 — sized for ~60% page height block */
-  --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 3pt);
+  --story-full-size: calc(clamp(1.05rem, 1.55vw, 1.35rem) - 2pt);
   --title-size: calc(clamp(2.5rem, 8vw, 6rem) - 25pt);
   --title-top-pad: calc(1.75rem - 5pt);
   /* Rings + GPS + story media: lifted toward “peak prompt” (negative = up) */
   --ring-lift: -4vh;
   /* Brief ring: extra downward nudge on large screens (0 by default) */
   --brief-y-extra: 0%;
+  /* Bottom chrome: shared baseline for home-ring / spin / auth / i */
+  --chrome-bottom: calc(1.75rem - 5pt);
+  --chrome-font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  --chrome-hit: calc(var(--chrome-font-size) * 1.55);
   --col-count: 5;
   --col-gap: 15px;
   --col-pad-left: 5px;
@@ -634,26 +688,17 @@ body.is-booting .path-points {
   column-fill: auto;
 }
 
-.story-photopoint-link {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.12em;
-  cursor: pointer;
-}
-
-.story-photopoint-link:hover {
-  text-decoration: none;
-}
-
 /* Replaces #spin once a story is open: “real or fake?” */
 .story-auth {
   position: absolute;
   left: 50%;
-  bottom: calc(1.75rem - 5pt);
+  bottom: var(--chrome-bottom);
   z-index: 5;
-  display: flex;
+  box-sizing: border-box;
+  display: none;
   align-items: center;
   justify-content: center;
+  height: var(--chrome-hit);
   margin: 0;
   padding: 0;
   transform: translateX(-50%);
@@ -663,30 +708,32 @@ body.is-booting .path-points {
 }
 
 .story-auth.is-visible {
+  display: flex;
   opacity: 1;
   pointer-events: none;
 }
 
 .story-auth[hidden] {
-  display: none;
+  display: none !important;
+  opacity: 0 !important;
 }
 
 .story-auth.is-visible[hidden] {
-  display: flex;
+  display: none !important;
 }
 
 .story-auth-prompt {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 0.28em;
   margin: 0;
   pointer-events: none;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 400;
-  font-size: calc((clamp(2.5rem, 8vw, 6rem) - 25pt) * 0.38);
+  font-size: var(--chrome-font-size);
   line-height: 1;
   letter-spacing: -0.02em;
   color: #000000;

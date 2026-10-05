@@ -158,12 +158,16 @@ const CODE_REVEAL_SCALE_MIN = 0.55;
 const CODE_REVEAL_SCALE_MAX = 4.5;
 /** Intro splash copy — dismissed by clicking the green text (unlocks audio). */
 const BOOT_SPLASH_COPY = {
-  it: "10 esperienze\nquali sono vissute e quali no?",
-  en: "10 experiences\nwhich are lived and which are not?",
+  it: "10 esperienze\npezzi di vita vissuta o di vita generata?",
+  en: "10 experiences\nreally lived or ai generated?",
 };
 const CODE_REVEAL_CAPTION_COPY = {
-  it: "no, non è un'esperienza realmente vissuta",
-  en: "no, this is not a truly lived experience",
+  it: "no, questa esperienza è in larga parte generata",
+  en: "no, this experience is largely generated",
+};
+const VOID_FAKE_CAPTION_COPY = {
+  it: "sì, questa esperienza è stata generata",
+  en: "yes, this experience was generated",
 };
 const REAL_CONFIRM_COPY = {
   it: "sì, questo è un pezzo di vita realmente vissuta",
@@ -369,25 +373,6 @@ function formatQuoteLineBreaks(text) {
     .replace(/\.\s+/g, ".\n");
 }
 
-const PHOTOPOINT_URL = "https://lagazuoi.it/IT/fotopoint.php";
-
-/** @param {string} text */
-function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Full story prose with Photopoint → external link (new window). */
-function renderStoryFullHtml(full) {
-  return escapeHtml(full).replace(
-    /Photopoint/g,
-    `<a class="story-photopoint-link" href="${PHOTOPOINT_URL}" target="_blank" rel="noopener noreferrer">Photopoint</a>`,
-  );
-}
-
 /** @param {number} t */
 function easeOutQuint(t) {
   return 1 - (1 - t) ** 5;
@@ -424,6 +409,7 @@ function boot() {
   const langSwitch = document.querySelector("#lang-switch");
   const langItBtn = document.querySelector("#lang-it");
   const langEnBtn = document.querySelector("#lang-en");
+  const infoBtn = document.querySelector("#info-btn");
   const storyPanel = document.querySelector("#story-panel");
   const storyPanelDatetime = document.querySelector("#story-panel-datetime");
   const storyPanelBody = document.querySelector("#story-panel-body");
@@ -431,6 +417,7 @@ function boot() {
   const storyAuthReal = document.querySelector("#story-auth-real");
   const storyAuthFake = document.querySelector("#story-auth-fake");
   const storyAuthOr = document.querySelector("#story-auth-or");
+  const storyAuthMark = document.querySelector(".story-auth-mark");
   const storyMedia = document.querySelector("#story-media");
   const storyMediaGrid = document.querySelector("#story-media-grid");
   const storyBrowseHint = document.querySelector("#story-browse-hint");
@@ -497,6 +484,7 @@ function boot() {
     !(langSwitch instanceof HTMLElement) ||
     !(langItBtn instanceof HTMLButtonElement) ||
     !(langEnBtn instanceof HTMLButtonElement) ||
+    !(infoBtn instanceof HTMLElement) ||
     !(storyPanel instanceof HTMLElement) ||
     !(storyPanelDatetime instanceof HTMLElement) ||
     !(storyPanelBody instanceof HTMLElement) ||
@@ -504,6 +492,7 @@ function boot() {
     !(storyAuthReal instanceof HTMLButtonElement) ||
     !(storyAuthFake instanceof HTMLButtonElement) ||
     !(storyAuthOr instanceof HTMLElement) ||
+    !(storyAuthMark instanceof HTMLElement) ||
     !(storyMedia instanceof HTMLElement) ||
     !(storyMediaGrid instanceof HTMLElement) ||
     !(storyBrowseHint instanceof HTMLElement) ||
@@ -797,13 +786,14 @@ function boot() {
     storyPanel.classList.remove("is-visible");
     storyPanel.hidden = true;
     storyPanelDatetime.textContent = "";
-    storyPanelBody.innerHTML = "";
+    storyPanelBody.textContent = "";
     storyAuth.classList.remove("is-visible");
     storyAuth.hidden = true;
     storyAuth.setAttribute("aria-hidden", "true");
     storyAuthReal.textContent = "";
     storyAuthFake.textContent = "";
-    storyAuthOr.textContent = "or";
+    storyAuthOr.textContent = "";
+    storyAuthMark.textContent = "";
     storyAuthReal.disabled = false;
     storyAuthFake.disabled = false;
     spinBtn.hidden = false;
@@ -919,7 +909,8 @@ function boot() {
   }
 
   function showVoid404() {
-    void404.textContent = storyLang === "en" ? "fake" : "finto";
+    void404.textContent =
+      storyLang === "en" ? VOID_FAKE_CAPTION_COPY.en : VOID_FAKE_CAPTION_COPY.it;
     void404.hidden = false;
     void404.setAttribute("aria-hidden", "false");
     window.requestAnimationFrame(() => {
@@ -1028,6 +1019,7 @@ function boot() {
       titleEl,
       spinBtn,
       homeBtn,
+      infoBtn,
       storyPanel,
       storyAuth,
       storyMedia,
@@ -1078,7 +1070,7 @@ function boot() {
         void404HideTimer = window.setTimeout(() => {
           void404HideTimer = null;
           hideVoid404();
-        }, 950);
+        }, 2000);
       }, show404Ms);
 
       voidHomeTimer = window.setTimeout(() => {
@@ -1298,7 +1290,7 @@ function boot() {
     const isNewEntry = storyBrowseHintStoryId !== story.id;
     activeSettledStory = story;
     storyPanelDatetime.textContent = `${story.datetime}\n#${story.title}`;
-    storyPanelBody.innerHTML = renderStoryFullHtml(story.full);
+    storyPanelBody.textContent = story.full;
     storyPanel.hidden = false;
     activeStoryReal = story.real === true;
     if (storyLang === "en") {
@@ -1312,6 +1304,7 @@ function boot() {
       storyAuthOr.textContent = "o";
       storyAuth.setAttribute("aria-label", "reale o finto?");
     }
+    storyAuthMark.textContent = "?";
     storyAuthReal.disabled = false;
     storyAuthFake.disabled = false;
     storyAuth.hidden = false;
@@ -2054,6 +2047,14 @@ function boot() {
     syncLangButtons();
   }
 
+  function syncInfoHref() {
+    if (!(infoBtn instanceof HTMLAnchorElement)) return;
+    const infoUrl = new URL(`${import.meta.env.BASE_URL}info.html`, window.location.href);
+    if (storyLang === "en") infoUrl.searchParams.set("lang", "en");
+    else infoUrl.searchParams.delete("lang");
+    infoBtn.href = `${infoUrl.pathname}${infoUrl.search}`;
+  }
+
   /**
    * @param {"it" | "en"} lang
    */
@@ -2066,6 +2067,7 @@ function boot() {
     else url.searchParams.delete("lang");
     window.history.replaceState({}, "", url);
     applyStoryLocale();
+    syncInfoHref();
   }
 
   langItBtn.addEventListener("click", (event) => {
@@ -2078,6 +2080,11 @@ function boot() {
   });
   langItBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
   langEnBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  infoBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  syncInfoHref();
+  infoBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
   syncLangButtons();
 
   // Unlock AudioContext on first gesture (Safari/Chrome autoplay policy).
@@ -2291,6 +2298,7 @@ function boot() {
         storyPanel.contains(e.target) ||
         storyAuth.contains(e.target) ||
         langSwitch.contains(e.target) ||
+        infoBtn.contains(e.target) ||
         lightbox.contains(e.target))
     ) {
       return;
@@ -2466,22 +2474,18 @@ function boot() {
   render();
   requestAnimationFrame(frame);
 
-  const deepStory = resolveStoryParam(
-    new URLSearchParams(window.location.search).get("story"),
-  );
+  const searchParams = new URLSearchParams(window.location.search);
+  const deepStory = resolveStoryParam(searchParams.get("story"));
+  const skipBootToRings = searchParams.get("rings") === "1";
 
   // Intro: stay on green copy until click — that gesture unlocks bed audio
   let bootEntered = false;
   syncBootSplashText();
-  bootSplash.hidden = false;
-  document.body.classList.add("is-booting");
-  spinBtn.disabled = true;
-  // Prefetch GPS while waiting (hidden under is-booting)
   pathPointsApi = mountPathPoints(pathPointsHost, loadGpxPoints()) ?? null;
 
   function enterFromBootSplash(e) {
-    e.preventDefault();
-    e.stopPropagation();
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (bootEntered || !document.body.classList.contains("is-booting")) return;
     bootEntered = true;
 
@@ -2504,8 +2508,30 @@ function boot() {
     }
   }
 
-  bootSplash.addEventListener("click", enterFromBootSplash);
-  bootSplash.addEventListener("pointerdown", (e) => e.stopPropagation());
+  if (skipBootToRings) {
+    // Back from info (or shared link): open the rings, skip boot splash
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("rings");
+    window.history.replaceState({}, "", clean);
+
+    bootEntered = true;
+    bootSplash.hidden = true;
+    bootSplash.disabled = true;
+    document.body.classList.remove("is-booting");
+    unlockBed();
+    playBedHome();
+    if (deepStory >= 0) {
+      landOnStory(deepStory, { immediate: true });
+    } else {
+      spinBtn.disabled = false;
+    }
+  } else {
+    bootSplash.hidden = false;
+    document.body.classList.add("is-booting");
+    spinBtn.disabled = true;
+    bootSplash.addEventListener("click", enterFromBootSplash);
+    bootSplash.addEventListener("pointerdown", (e) => e.stopPropagation());
+  }
 }
 
 boot();

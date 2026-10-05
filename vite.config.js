@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         trail: resolve(__dirname, "trail.html"),
+        info: resolve(__dirname, "info.html"),
       },
     },
   },
