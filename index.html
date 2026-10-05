@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peak Prompt</title>
+    <!-- Hide GPS/rings before stylesheet loads (avoids flash on refresh) -->
+    <style>
+      body.is-booting .path-points,
+      body.is-booting .carousel-item,
+      body.is-booting .text-item {
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+    </style>
+    <script type="module" crossorigin src="/experiencing/assets/main-CztkvmvW.js"></script>
+    <link rel="modulepreload" crossorigin href="/experiencing/assets/three.module-HOKLy1Qc.js">
+    <link rel="stylesheet" crossorigin href="/experiencing/assets/main-pZSRJr-7.css">
+  </head>
+  <body class="is-booting">
+    <div id="app" class="stage">
+      <div class="col-grid" aria-hidden="true">
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+        <div class="col-grid-cell"></div>
+      </div>
+      <h1 class="title">
+        <button
+          type="button"
+          class="title-home"
+          id="title-home"
+          aria-label="Torna alla home"
+        >
+          <span class="title-peak">peak</span>
+          <span class="title-prompt">prompt</span>
+        </button>
+      </h1>
+      <button type="button" class="boot-splash" id="boot-splash" aria-live="polite">
+        <div class="boot-wide-carousel" id="boot-wide-carousel" aria-hidden="true">
+          <div class="boot-wide-stack frame-stack" id="boot-wide-stack"></div>
+        </div>
+        <span class="boot-splash-label">
+          10 esperienze<br />pezzi di vita vissuta o di vita generata?
+        </span>
+      </button>
+      <p
+        class="real-confirm"
+        id="real-confirm"
+        hidden
+        aria-live="polite"
+        aria-hidden="true"
+      ></p>
+      <p class="void-404" id="void-404" hidden aria-hidden="true">
+        sì, questa esperienza è stata generata
+      </p>
+      <p class="boot-credit" id="boot-credit" aria-hidden="true">
+        Lagazuoi EXPO Dolomiti / 2026
+      </p>
+      <button type="button" class="spin" id="spin" aria-label="Gira la ruota delle storie">
+        spin
+      </button>
+      <aside
+        class="story-auth"
+        id="story-auth"
+        hidden
+        aria-hidden="true"
+        aria-label="real or fake?"
+      >
+        <p class="story-auth-prompt">
+          <button
+            type="button"
+            class="story-auth-choice"
+            id="story-auth-real"
+            data-guess="real"
+          ></button>
+          <span class="story-auth-or" id="story-auth-or" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="story-auth-choice"
+            id="story-auth-fake"
+            data-guess="fake"
+          ></button>
+          <span class="story-auth-mark" aria-hidden="true"></span>
+        </p>
+      </aside>
+      <button
+        type="button"
+        class="home-ring"
+        id="home-ring"
+        aria-label="Torna alla home"
+        hidden
+      ></button>
+      <a
+        class="info-btn"
+        id="info-btn"
+        href="./info.html"
+        aria-label="Informazioni sul progetto"
+      >
+        info
+      </a>
+      <div class="lang-switch" id="lang-switch" role="group" aria-label="Lingua">
+        <div class="lang-switch-rail">
+          <button type="button" class="lang-switch-btn" id="lang-it" data-lang="it">
+            ita
+          </button>
+          <span class="lang-switch-sep" aria-hidden="true">/</span>
+          <button type="button" class="lang-switch-btn" id="lang-en" data-lang="en">
+            eng
+          </button>
+        </div>
+      </div>
+      <aside class="story-panel" id="story-panel" hidden aria-live="polite">
+        <div class="story-panel-inner">
+          <p class="story-panel-datetime" id="story-panel-datetime"></p>
+          <div class="story-panel-body" id="story-panel-body"></div>
+        </div>
+      </aside>
+      <aside class="story-media" id="story-media" hidden aria-hidden="true">
+        <div class="story-media-viewport">
+          <div class="story-media-stack" id="story-media-grid"></div>
+        </div>
+      </aside>
+      <p
+        class="story-browse-hint"
+        id="story-browse-hint"
+        hidden
+        aria-hidden="true"
+      ></p>
+      <!-- GPS track as 3D points — stage center, outside CSS-3D view (clean WebGL) -->
+      <div class="path-points" id="path-points" aria-hidden="true"></div>
+      <!-- Fixed viewpoint (never animated) -->
+      <div class="view" id="view">
+        <!-- Single rotating 3D root: images + texts as direct children (Safari-safe) -->
+        <div class="rig" id="rig" aria-label="Storie Photopoint Lagazuoi"></div>
+      </div>
+      <div class="lightbox" id="lightbox" hidden>
+        <button
+          type="button"
+          class="lightbox-close"
+          id="lightbox-close"
+          aria-label="Chiudi"
+        >
+          ×
+        </button>
+        <img class="lightbox-image" id="lightbox-image" alt="" hidden />
+        <video
+          class="lightbox-video"
+          id="lightbox-video"
+          hidden
+          controls
+          playsinline
+          loop
+        ></video>
+      </div>
+      <!-- Fake story marked “real”: dense 3D wall of project source pages -->
+      <div
+        class="code-reveal"
+        id="code-reveal"
+        hidden
+        aria-hidden="true"
+        role="dialog"
+        aria-label="Source"
+      >
+        <p class="code-reveal-caption" id="code-reveal-caption">
+          no, questa esperienza è in larga parte generata
+        </p>
+        <div class="code-reveal-scene">
+          <div class="code-reveal-rig" id="code-reveal-rig"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
