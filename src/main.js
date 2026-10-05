@@ -1434,7 +1434,9 @@ function boot() {
         if (!settled) return;
         storyPanel.classList.add("is-visible");
         storyAuth.classList.add("is-visible");
-        if (gallery.length) storyMedia.classList.add("is-visible");
+        if (gallery.length) {
+          storyMedia.classList.add("is-visible");
+        }
         for (const vid of activeGalleryVideos) {
           vid.play().catch(() => {});
         }

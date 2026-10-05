@@ -250,3 +250,57 @@ body.is-info-float-visible #info-float-canvas {
   outline: 2px solid #ff69b4;
   outline-offset: 3px;
 }
+
+/* Same placement as main experience — pink chrome on black */
+.info-lang-switch.lang-switch {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  z-index: 5;
+  translate: 0 -50%;
+  pointer-events: auto;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: calc(var(--title-size) * 0.38);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ff69b4;
+  text-transform: lowercase;
+}
+
+.info-lang-switch .lang-switch-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3em;
+  transform: rotate(90deg);
+  transform-origin: center center;
+}
+
+.info-lang-switch .lang-switch-sep {
+  opacity: 1;
+  user-select: none;
+}
+
+.info-lang-switch .lang-switch-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  opacity: 0.35;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.info-lang-switch .lang-switch-btn.is-active {
+  opacity: 1;
+}
+
+.info-lang-switch .lang-switch-btn:focus-visible {
+  outline: 2px solid #ff69b4;
+  outline-offset: 4px;
+}
